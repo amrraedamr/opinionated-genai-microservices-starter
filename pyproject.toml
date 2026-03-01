@@ -1,0 +1,57 @@
+[tool.poetry]
+name = "base"
+version = "0.1.0"
+description = "MCIT POC Skeleton"
+authors = ["Amr Amr <amr.amr@pwc.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.15"
+fastapi = "^0.133.1"
+uvicorn = "^0.41.0"
+pyhumps = "^3.8.0"
+alembic = "^1.18.4"
+sqlalchemy = "^2.0.47"
+sqlalchemy-utils = "^0.42.1"
+pyjwt = "^2.11.0"
+openai = "^2.24.0"
+argon2-cffi = "^25.1.0"
+pydantic = {extras = ["email"], version = "^2.12.5"}
+cryptography = "^46.0.5"
+sse-starlette = "^3.2.0"
+httpx = {extras = ["http2"], version = "^0.28.1"}
+requests = "^2.32.5"
+redis = "^7.2.1"
+certifi = "^2026.2.25"
+gunicorn = "^25.1.0"
+pymysql = "^1.1.2"
+psycopg2-binary = "^2.9.11"
+aiosqlite = "^0.22.1"
+aiomysql = "^0.3.2"
+asyncpg = "^0.31.0"
+azure-keyvault-secrets = "^4.10.0"
+azure-identity = "^1.25.2"
+azure-storage-blob = "^12.28.0"
+pymongo = "^4.16.0"
+motor = "^3.7.1"
+qdrant-client = "^1.17.0"
+azure-search-documents = "^11.6.0"
+colorlog = "^6.10.1"
+greenlet = "^3.3.2"
+
+[tool.poetry.scripts]
+api = "base:start"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = ">=2.16.0"
+pre-commit-hooks = ">=4.1.0"
+ruff = "^0.15.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+lint.ignore = ["E501"]
+lint.extend-select = ["I"]
