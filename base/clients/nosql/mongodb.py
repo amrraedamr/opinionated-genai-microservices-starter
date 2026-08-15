@@ -1,8 +1,8 @@
 import urllib.parse
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient, MongoClient
+from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.database import Database
 
 from base.services.common.meta import Singleton
@@ -11,7 +11,7 @@ from base.services.configuration.local_config import LocalConfig
 
 class MongoDBClient(metaclass=Singleton):
     """
-    MongoDB client with both sync (pymongo) and async (motor) support.
+    MongoDB client with both sync and async (pymongo) support.
     Designed to be instantiated once and reused across the application.
     """
 
@@ -31,7 +31,7 @@ class MongoDBClient(metaclass=Singleton):
         )
 
         self._sync_client: MongoClient[dict[str, Any]] | None = None
-        self._async_client: AsyncIOMotorClient[dict[str, Any]] | None = None
+        self._async_client: AsyncMongoClient[dict[str, Any]] | None = None
 
     @staticmethod
     def _build_connection_string() -> str:
@@ -56,9 +56,7 @@ class MongoDBClient(metaclass=Singleton):
             "serverSelectionTimeoutMS": self._server_selection_timeout_ms,
         }
 
-    # -------------------------------------------------------------------------
     # Sync
-    # -------------------------------------------------------------------------
 
     def _ensure_sync_initialized(self) -> None:
         if self._sync_client is not None:
@@ -78,31 +76,27 @@ class MongoDBClient(metaclass=Singleton):
         """Get a sync database handle."""
         return self.sync_client.get_database(database)
 
-    # -------------------------------------------------------------------------
     # Async
-    # -------------------------------------------------------------------------
 
     def _ensure_async_initialized(self) -> None:
         if self._async_client is not None:
             return
-        self._async_client = AsyncIOMotorClient(
+        self._async_client = AsyncMongoClient(
             self._connection_string, **self._get_common_kwargs()
         )
 
     @property
-    def async_client(self) -> AsyncIOMotorClient[dict[str, Any]]:
-        """Async motor client backed by the connection pool."""
+    def async_client(self) -> AsyncMongoClient[dict[str, Any]]:
+        """Async pymongo client backed by the connection pool."""
         self._ensure_async_initialized()
         assert self._async_client is not None
         return self._async_client
 
-    def aget_database(self, database: str) -> AsyncIOMotorDatabase[dict[str, Any]]:
+    def aget_database(self, database: str) -> AsyncDatabase[dict[str, Any]]:
         """Get an async database handle."""
         return self.async_client.get_database(database)
 
-    # -------------------------------------------------------------------------
     # Health & Lifecycle
-    # -------------------------------------------------------------------------
 
     def ping(self) -> bool:
         """Sync health check."""
@@ -126,13 +120,13 @@ class MongoDBClient(metaclass=Singleton):
             self._sync_client.close()
             self._sync_client = None
 
-    def aclose(self) -> None:
+    async def aclose(self) -> None:
         """Close async client and connections."""
         if self._async_client is not None:
-            self._async_client.close()
+            await self._async_client.close()
             self._async_client = None
 
-    def close_all(self) -> None:
+    async def close_all(self) -> None:
         """Close both sync and async resources."""
         self.close()
-        self.aclose()
+        await self.aclose()

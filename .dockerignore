@@ -1,0 +1,41 @@
+# Python
+__pycache__
+*.pyc
+*.egg-info
+.venv
+venv
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Caches & testing
+.ruff_cache
+.mypy_cache
+.pytest_cache
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Misc
+CLAUDE.md
+claude-memory

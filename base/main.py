@@ -11,6 +11,7 @@ from base.services.auth.dependencies import validate_user
 from base.services.common.meta import Stored, scope_id
 from base.services.logging.console import ConsoleLoggerService
 from base.services.logging.tee_stream import TerminalCaptureService
+from base.services.prompt.loader import PromptLoader
 from base.tools.exception_handlers import AppExceptionHandler
 from base.tools.routers import init_routers
 from base.tools.stream import StreamIterator
@@ -23,13 +24,15 @@ async def lifespan(app: FastAPI):
 
     capture_service = TerminalCaptureService(
         "POC-Skeleton"
-    )  # You can customize this app name for log channel separation
+    )  # TODO: Amr: Put the app name in config
     capture_service.start()
 
     try:
+        await PromptLoader().initialize()
         yield
     finally:
         logger.info("Application shutting down")
+        await PromptLoader().shutdown()
         await capture_service.stop()
 
 
@@ -60,7 +63,11 @@ async def register_request(
             Stored.delete_scope()
 
 
-init_routers(app, prefix="/api/7r", routers=routers)
+init_routers(
+    app,
+    routers=routers,
+    prefix="/api",
+)
 
 
 AppExceptionHandler().register(app)
@@ -68,7 +75,7 @@ AppExceptionHandler().register(app)
 
 @app.get("/", tags=["Main"])
 def root():
-    return dict(message="Welcome to the POC-Skeleton API!", version="0.1")
+    return {"message": "Welcome to the POC-Skeleton API!", "version": "0.1"}
 
 
 @app.get("/health-check", tags=["Main"])

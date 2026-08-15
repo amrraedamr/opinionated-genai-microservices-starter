@@ -3,12 +3,12 @@ import logging.config
 from typing import Any
 
 from base.models.definitions.exceptions import ExceptionCategory
-from base.services.common.meta import SingletonABC
-from base.services.logging import AbstractLoggerService, LogMessage
+from base.services.common.meta import Singleton
+from base.services.logging import LogMessage
 from base.services.logging.config import LOGGING_CONFIG
 
 
-class ConsoleLoggerService(AbstractLoggerService, metaclass=SingletonABC):
+class ConsoleLoggerService(metaclass=Singleton):
     def __init__(self) -> None:
         logging.config.dictConfig(LOGGING_CONFIG)
         self._logger: logging.Logger = logging.getLogger()

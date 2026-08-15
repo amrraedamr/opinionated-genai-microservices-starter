@@ -14,12 +14,11 @@ from base.models.view_models.database import (
     SortingOrder,
     SortingParams,
 )
-from base.services import AbstractService
 
 T = TypeVar("T")
 
 
-class AbstractSQLService(AbstractService, ABC):
+class AbstractSQLService(ABC):
     """
     Abstract base class for SQL services with both sync and async support.
 
@@ -27,12 +26,7 @@ class AbstractSQLService(AbstractService, ABC):
     All query, execute, pagination, upsert, and health check logic is handled here.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-
-    # -------------------------------------------------------------------------
     # Abstract — subclasses must implement
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def _get_session(self) -> AbstractContextManager[Session]: ...
@@ -49,9 +43,7 @@ class AbstractSQLService(AbstractService, ABC):
     @abstractmethod
     async def adispose(self) -> None: ...
 
-    # -------------------------------------------------------------------------
     # Query
-    # -------------------------------------------------------------------------
 
     def query(
         self,
@@ -82,9 +74,7 @@ class AbstractSQLService(AbstractService, ABC):
                 session.expunge_all()
             return result
 
-    # -------------------------------------------------------------------------
     # Execute
-    # -------------------------------------------------------------------------
 
     def execute(self, execute_query: Any) -> Any:
         """Performs update, delete queries."""
@@ -96,9 +86,65 @@ class AbstractSQLService(AbstractService, ABC):
         async with self._aget_session() as session:
             return await session.execute(execute_query)
 
-    # -------------------------------------------------------------------------
+    # Transactions
+
+    def execute_in_transaction(
+        self,
+        statements: list[Any] | None = None,
+        rows_to_add: list[T] | None = None,
+        flush: bool = True,
+        expunge: bool = True,
+        refresh: bool = True,
+    ) -> list[T]:
+        """Execute delete/update statements and/or row inserts in a single
+        transaction. All operations commit together or not at all. Returns
+        the row list after flush and refresh so callers get storage-assigned
+        fields (IDs, timestamps) populated."""
+        rows = rows_to_add or []
+        with self._get_session() as session:
+            if statements:
+                for stmt in statements:
+                    session.execute(stmt)
+            if rows:
+                session.add_all(rows)
+                if flush:
+                    session.flush()
+                if refresh:
+                    for row in rows:
+                        session.refresh(row)
+                if expunge:
+                    session.expunge_all()
+        return rows
+
+    async def aexecute_in_transaction(
+        self,
+        statements: list[Any] | None = None,
+        rows_to_add: list[T] | None = None,
+        flush: bool = True,
+        expunge: bool = True,
+        refresh: bool = True,
+    ) -> list[T]:
+        """Execute delete/update statements and/or row inserts in a single
+        transaction asynchronously. All operations commit together or not at
+        all. Returns the row list after flush and refresh so callers get
+        storage-assigned fields (IDs, timestamps) populated."""
+        rows = rows_to_add or []
+        async with self._aget_session() as session:
+            if statements:
+                for stmt in statements:
+                    await session.execute(stmt)
+            if rows:
+                session.add_all(rows)
+                if flush:
+                    await session.flush()
+                if refresh:
+                    for row in rows:
+                        await session.refresh(row)
+                if expunge:
+                    session.expunge_all()
+        return rows
+
     # Bulk Operations
-    # -------------------------------------------------------------------------
 
     def update_many(self, update_query: Any) -> None:
         """Performs bulk update queries."""
@@ -120,9 +166,7 @@ class AbstractSQLService(AbstractService, ABC):
         async with self._aget_session() as session:
             await session.execute(delete_query)
 
-    # -------------------------------------------------------------------------
     # Pagination & Sorting
-    # -------------------------------------------------------------------------
 
     def paginate(
         self,
@@ -221,9 +265,7 @@ class AbstractSQLService(AbstractService, ABC):
             else desc(sorting_params.sort_by)
         )
 
-    # -------------------------------------------------------------------------
     # Upsert
-    # -------------------------------------------------------------------------
 
     def upsert_row(
         self,
@@ -335,9 +377,7 @@ class AbstractSQLService(AbstractService, ABC):
             if expunge:
                 session.expunge_all()
 
-    # -------------------------------------------------------------------------
     # Health Check
-    # -------------------------------------------------------------------------
 
     def health_check(self) -> bool:
         """Performs a lightweight query to verify database accessibility."""

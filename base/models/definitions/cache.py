@@ -9,6 +9,7 @@ class CacheChannels(Enum):
     TEST = "test_channel"
     KEYVAULT_RELOAD = "keyvault_reload"
     LOGS = "logs"
+    PROMPT_RELOAD = "prompt_reload"
 
     def for_app(self, app_name: str) -> str:
         return f"{app_name}:{self.value}"

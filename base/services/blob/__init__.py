@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
-from base.services import AbstractService
-
 
 class BlobProperties(dict[str, Any]):
     """Lightweight wrapper around blob metadata/properties returned by backends.
@@ -33,15 +31,10 @@ class BlobProperties(dict[str, Any]):
         return self.get("last_modified")
 
 
-class AbstractBlobService(AbstractService, ABC):
+class AbstractBlobService(ABC):
     """Abstract base class for blob / object storage services."""
 
-    def __init__(self) -> None:
-        super().__init__()
-
-    # -------------------------------------------------------------------------
     # Container / Bucket Management
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def create_container(self, container: str) -> None:
@@ -67,9 +60,7 @@ class AbstractBlobService(AbstractService, ABC):
     async def acontainer_exists(self, container: str) -> bool:
         """Check whether a container/bucket exists asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Upload
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def upload(
@@ -104,9 +95,7 @@ class AbstractBlobService(AbstractService, ABC):
     ) -> None:
         """Upload bytes to a blob asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Download
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def download(self, container: str, blob_name: str) -> bytes:
@@ -116,9 +105,7 @@ class AbstractBlobService(AbstractService, ABC):
     async def adownload(self, container: str, blob_name: str) -> bytes:
         """Download a blob asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def delete(self, container: str, blob_name: str) -> None:
@@ -128,9 +115,7 @@ class AbstractBlobService(AbstractService, ABC):
     async def adelete(self, container: str, blob_name: str) -> None:
         """Delete a single blob asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Exists
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def exists(self, container: str, blob_name: str) -> bool:
@@ -140,9 +125,7 @@ class AbstractBlobService(AbstractService, ABC):
     async def aexists(self, container: str, blob_name: str) -> bool:
         """Check whether a blob exists asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Properties / Metadata
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get_properties(self, container: str, blob_name: str) -> BlobProperties:
@@ -152,9 +135,7 @@ class AbstractBlobService(AbstractService, ABC):
     async def aget_properties(self, container: str, blob_name: str) -> BlobProperties:
         """Retrieve blob properties asynchronously."""
 
-    # -------------------------------------------------------------------------
     # List Blobs
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def list_blobs(
@@ -168,9 +149,7 @@ class AbstractBlobService(AbstractService, ABC):
     ) -> AsyncIterator[BlobProperties]:
         """Iterate over blobs in a container asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Generate URL
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def generate_url(
@@ -194,9 +173,7 @@ class AbstractBlobService(AbstractService, ABC):
     ) -> str:
         """Generate a time-limited download URL asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get_service_name(self) -> str:

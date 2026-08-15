@@ -6,7 +6,11 @@ from types import ModuleType
 from fastapi import FastAPI
 
 
-def init_routers(app: FastAPI, prefix: str, routers: ModuleType) -> None:
+def init_routers(
+    app: FastAPI,
+    routers: ModuleType,
+    prefix: str = "",
+) -> None:
     """
     Include all routers from the routers package.
     - Walk through the modules inside the routers package.

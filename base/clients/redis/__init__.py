@@ -49,9 +49,7 @@ class RedisClient(metaclass=Singleton):
             kwargs["ssl_cert_reqs"] = self._ssl_cert_reqs
         return kwargs
 
-    # -------------------------------------------------------------------------
     # Sync
-    # -------------------------------------------------------------------------
 
     def _get_sync_pool(self) -> ConnectionPool:
         if self._sync_pool is None:
@@ -69,9 +67,7 @@ class RedisClient(metaclass=Singleton):
             self._sync_client = Redis(connection_pool=self._get_sync_pool())
         return self._sync_client
 
-    # -------------------------------------------------------------------------
     # Async
-    # -------------------------------------------------------------------------
 
     def _get_async_pool(self) -> AsyncConnectionPool:
         if self._async_pool is None:
@@ -89,9 +85,7 @@ class RedisClient(metaclass=Singleton):
             self._async_client = AsyncRedis(connection_pool=self._get_async_pool())
         return self._async_client
 
-    # -------------------------------------------------------------------------
     # Health & Lifecycle
-    # -------------------------------------------------------------------------
 
     def ping(self) -> bool:
         """Sync health check."""

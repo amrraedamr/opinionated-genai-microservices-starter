@@ -39,6 +39,8 @@ async def login(
     request: LoginRequest,
 ) -> BaseResponse[LoginResponse]:
     user = await UserStore().aget(request.email, column_name="email")
+    if not user:
+        raise_error(AuthErrors.USER_UNAUTHORIZED)
     if not PasswordHashingService.verify(request.password, user.password_hash):
         raise_error(AuthErrors.USER_UNAUTHORIZED)
     token_pair = AuthService().generate_token_pair(user)

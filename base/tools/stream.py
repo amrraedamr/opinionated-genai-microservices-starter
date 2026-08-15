@@ -82,7 +82,7 @@ class StreamIterator:
             response["retry"] = retry
         return response
 
-    # ── Async ────────────────────────────────────────────────────────────
+    # Async
 
     async def asend(self, value: AnyStreamMessage) -> None:
         if self._queue is None:
@@ -99,7 +99,7 @@ class StreamIterator:
         if error_stream_model:
             await self.asend(error_stream_model)
 
-    # ── Sync ─────────────────────────────────────────────────────────────
+    # Sync
 
     def send(self, value: AnyStreamMessage) -> None:
         if self._queue is None:

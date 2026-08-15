@@ -34,9 +34,7 @@ class QdrantClient(metaclass=Singleton):
             kwargs["api_key"] = self._api_key
         return kwargs
 
-    # -------------------------------------------------------------------------
     # Sync
-    # -------------------------------------------------------------------------
 
     def _ensure_sync_initialized(self) -> None:
         if self._sync_client is not None:
@@ -50,9 +48,7 @@ class QdrantClient(metaclass=Singleton):
         assert self._sync_client is not None
         return self._sync_client
 
-    # -------------------------------------------------------------------------
     # Async
-    # -------------------------------------------------------------------------
 
     def _ensure_async_initialized(self) -> None:
         if self._async_client is not None:
@@ -66,9 +62,7 @@ class QdrantClient(metaclass=Singleton):
         assert self._async_client is not None
         return self._async_client
 
-    # -------------------------------------------------------------------------
     # Health & Lifecycle
-    # -------------------------------------------------------------------------
 
     def ping(self) -> bool:
         """Sync health check."""

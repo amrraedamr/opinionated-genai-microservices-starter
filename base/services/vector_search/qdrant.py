@@ -30,9 +30,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
         super().__init__()
         self._client: QdrantClient = QdrantClient()
 
-    # -------------------------------------------------------------------------
     # Collection Management
-    # -------------------------------------------------------------------------
 
     def create_collection(
         self,
@@ -84,9 +82,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
             collection_name=collection
         )
 
-    # -------------------------------------------------------------------------
     # Upsert
-    # -------------------------------------------------------------------------
 
     def upsert(self, collection: str, records: list[VectorRecord]) -> None:
         for i in range(0, len(records), VECTOR_UPSERT_BATCH_SIZE):
@@ -110,9 +106,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
                 ],
             )
 
-    # -------------------------------------------------------------------------
     # Search
-    # -------------------------------------------------------------------------
 
     def search(
         self,
@@ -168,9 +162,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
             for point in results.points
         ]
 
-    # -------------------------------------------------------------------------
     # Get by ID
-    # -------------------------------------------------------------------------
 
     def get(
         self,
@@ -212,9 +204,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
             for r in records
         ]
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     def delete(self, collection: str, ids: list[str]) -> None:
         self._client.sync_client.delete(
@@ -228,9 +218,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
             points_selector=PointIdsList(points=cast(list[ExtendedPointId], ids)),
         )
 
-    # -------------------------------------------------------------------------
     # Count
-    # -------------------------------------------------------------------------
 
     def count(self, collection: str) -> int:
         result = self._client.sync_client.count(collection_name=collection)
@@ -240,9 +228,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
         result = await self._client.async_client.count(collection_name=collection)
         return result.count
 
-    # -------------------------------------------------------------------------
     # Scroll
-    # -------------------------------------------------------------------------
 
     def scroll(
         self,
@@ -298,9 +284,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
             str(next_offset) if next_offset is not None else None,
         )
 
-    # -------------------------------------------------------------------------
     # Health Check
-    # -------------------------------------------------------------------------
 
     def health_check(self) -> bool:
         try:
@@ -320,9 +304,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return "Qdrant"
@@ -333,9 +315,7 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
     async def adispose(self) -> None:
         await self._client.aclose()
 
-    # -------------------------------------------------------------------------
     # Internals
-    # -------------------------------------------------------------------------
 
     @staticmethod
     def _extract_vector(vector: Any) -> list[float]:

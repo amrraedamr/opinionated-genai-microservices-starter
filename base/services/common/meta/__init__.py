@@ -10,7 +10,7 @@ from base.tools.hashing import hash_args
 
 T = TypeVar("T")
 
-# ── Context vars for scope tracking ──────────────────────────────────────────
+# Context vars for scope tracking
 
 scope_id: contextvars.ContextVar[UUID] = contextvars.ContextVar("scope_id")
 processor_id: contextvars.ContextVar[UUID] = contextvars.ContextVar("processor_id")
@@ -26,7 +26,7 @@ def _get_scope_id(processor: bool = False) -> UUID:
         return new_id
 
 
-# ── Singleton ────────────────────────────────────────────────────────────────
+# Singleton
 
 
 class Singleton(type):
@@ -57,7 +57,7 @@ class SingletonSettings(Singleton, ModelMetaclass):
     pass
 
 
-# ── Stored (Scoped) ─────────────────────────────────────────────────────────
+# Stored (Scoped)
 
 
 class Stored(type):
@@ -107,7 +107,7 @@ class StoredABC(Stored, ABCMeta):
     pass
 
 
-# ── KeyedSingleton ───────────────────────────────────────────────────────────
+# KeyedSingleton
 
 
 class KeyedSingleton(type):
@@ -157,7 +157,7 @@ class KeyedSingletonABC(KeyedSingleton, ABCMeta):
     pass
 
 
-# ── ContextManager ───────────────────────────────────────────────────────────
+# ContextManager
 
 
 class ContextManager(type):
@@ -187,7 +187,7 @@ class ContextManagerStored(ContextManager, Stored):
     pass
 
 
-# ── NonInitialize ────────────────────────────────────────────────────────────
+# NonInitialize
 
 
 class NonInitialize(type):
@@ -195,7 +195,7 @@ class NonInitialize(type):
         return cls
 
 
-# ── Global purge ─────────────────────────────────────────────────────────────
+# Global purge
 
 
 def purge_all() -> None:

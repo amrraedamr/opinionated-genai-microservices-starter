@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 from azure.keyvault.secrets import SecretProperties
 
 from base.models.definitions.cache import CacheChannels
-from base.services.cache.redis import RedisCacheService
+from base.services.cache.memory import InMemoryCacheService
 from base.services.common.meta import Singleton
 from base.services.keyvault.azure_keyvault import AzureKeyVaultService
 
@@ -15,14 +15,14 @@ from base.services.keyvault.azure_keyvault import AzureKeyVaultService
 class KeyvaultConfigLoader(metaclass=Singleton):
     def __init__(self):
         self._parser: ConfigParser = ConfigParser()
-        self._cache_service: RedisCacheService = RedisCacheService()
+        self._cache_service: InMemoryCacheService = InMemoryCacheService()
         self._keyvault_provider: AzureKeyVaultService = AzureKeyVaultService()
 
-        self._parser.read("config.keyvault.ini")
+        self._parser.read("config/config.keyvault.ini")
 
         if "keyvault" not in self._parser:
             raise ValueError(
-                "Config section 'keyvault' is missing in config.keyvault.ini"
+                "Config section 'keyvault' is missing in config/config.keyvault.ini"
             )
 
         self.loading_keyvault_config: bool = False
@@ -90,7 +90,7 @@ class KeyvaultConfigLoader(metaclass=Singleton):
                     print(f"Warning: Secret '{secret_name}' not found in KeyVault")
         except Exception as e:
             print(
-                f"KeyVault Authentication failed. Loading from config.ini. Error: {e}"
+                f"KeyVault Authentication failed. Loading from config/config.ini. Error: {e}"
             )
             raise
 

@@ -15,9 +15,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         super().__init__()
         self._client: AzureBlobClient = AzureBlobClient()
 
-    # -------------------------------------------------------------------------
     # Container Management
-    # -------------------------------------------------------------------------
 
     def create_container(self, container: str) -> None:
         container_client = self._client.sync_client.get_container_client(container)
@@ -43,9 +41,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         container_client = self._client.async_client.get_container_client(container)
         return await container_client.exists()
 
-    # -------------------------------------------------------------------------
     # Upload
-    # -------------------------------------------------------------------------
 
     def upload(
         self,
@@ -81,9 +77,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
             metadata=metadata,
         )
 
-    # -------------------------------------------------------------------------
     # Download
-    # -------------------------------------------------------------------------
 
     def download(self, container: str, blob_name: str) -> bytes:
         blob_client = self._client.sync_client.get_blob_client(container, blob_name)
@@ -95,9 +89,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         stream = await blob_client.download_blob()
         return await stream.readall()
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     def delete(self, container: str, blob_name: str) -> None:
         blob_client = self._client.sync_client.get_blob_client(container, blob_name)
@@ -107,9 +99,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         blob_client = self._client.async_client.get_blob_client(container, blob_name)
         await blob_client.delete_blob()
 
-    # -------------------------------------------------------------------------
     # Exists
-    # -------------------------------------------------------------------------
 
     def exists(self, container: str, blob_name: str) -> bool:
         blob_client = self._client.sync_client.get_blob_client(container, blob_name)
@@ -119,9 +109,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         blob_client = self._client.async_client.get_blob_client(container, blob_name)
         return await blob_client.exists()
 
-    # -------------------------------------------------------------------------
     # Properties
-    # -------------------------------------------------------------------------
 
     def get_properties(self, container: str, blob_name: str) -> BlobProperties:
         blob_client = self._client.sync_client.get_blob_client(container, blob_name)
@@ -133,9 +121,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         props = await blob_client.get_blob_properties()
         return self._to_blob_properties(props)
 
-    # -------------------------------------------------------------------------
     # List Blobs
-    # -------------------------------------------------------------------------
 
     def list_blobs(
         self, container: str, prefix: str | None = None
@@ -179,9 +165,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
                 metadata=blob.metadata or {},
             )
 
-    # -------------------------------------------------------------------------
     # Generate URL
-    # -------------------------------------------------------------------------
 
     def generate_url(
         self,
@@ -225,9 +209,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
         )
         return f"{self._client.async_client.url}{container}/{blob_name}?{sas_token}"
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return "Azure Blob Storage"
@@ -238,9 +220,7 @@ class AzureBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def adispose(self) -> None:
         await self._client.aclose()
 
-    # -------------------------------------------------------------------------
     # Internals
-    # -------------------------------------------------------------------------
 
     @staticmethod
     def _to_blob_properties(props: object) -> BlobProperties:

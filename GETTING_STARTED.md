@@ -1,0 +1,261 @@
+# Getting Started
+
+A friendly entry point for this opinionated GenAI starter. If you've just cloned the repo and want to be up and running in a few minutes — and then know where to look next — you're in the right place.
+
+For a deep architecture reference, see [`README.md`](README.md).
+
+---
+
+## What is this?
+
+**opinionated-genai-starter** is a batteries-included FastAPI template for building AI-powered proof-of-concept applications. Instead of starting every POC from scratch, you fork or copy this starter and get a consistent, production-shaped foundation: layered architecture, metaclass-based DI, multi-database support, and pre-wired integrations for everything an AI POC typically needs.
+
+It's aimed at:
+
+- **POC owners** who want a working chat / RAG / agent app in hours, not weeks.
+- **Engineers** who want to swap one piece (say, the LLM provider, the SQL backend, or the vector DB) without rewiring the rest of the stack.
+- **Reviewers** who want to read predictable code: routers stay thin, services own logic, stores own persistence, and abstractions only exist where multiple backends actually exist.
+
+---
+
+## What you get out of the box
+
+- **Auth** — JWT (RS256) with access + refresh tokens, Argon2 password hashing, an `Authorization: Bearer …` dependency you can drop on any route.
+- **Conversations + chat history** — full conversation CRUD, canonical message storage with token counting, monotonic per-conversation sequencing, tool-call pair repair, visibility filtering.
+- **Agents framework** — `AbstractAgent` template-method base; concrete agents read / write a per-request `ExecutionContext` and pipe streamed output through `StreamIterator`.
+- **LLM via OpenAI SDK** — both the Chat Completions and the Responses API, sync + async, streaming + non-streaming, structured-output `parse_*` variants, automatic retries with jittered backoff and `Retry-After` support, Azure OpenAI content-filter detection on both pre-flight 400 responses and incomplete responses, and a typed `LLMError` hierarchy so callers never see raw SDK exceptions.
+- **SSE streaming** — `StreamIterator` integrates with `sse-starlette`; the conversation router shows the full pattern (background-task pump + EventSourceResponse).
+- **Vector search** — Qdrant, Azure AI Search, and MongoDB Atlas Search behind one `AbstractVectorSearchService` interface, plus idempotent Atlas Search index management.
+- **Multi-database SQL** — SQLite (default), MySQL, or PostgreSQL behind one `SQLService` selected by config.
+- **NoSQL** — MongoDB and Azure Cosmos DB behind one `AbstractNoSQLService`.
+- **Cache** — Redis (with pub/sub + distributed locks) or in-memory for tests.
+- **Azure** — Key Vault secret loading (with pub/sub-driven hot reload), Blob Storage, Cosmos DB.
+- **Debug tracing** — every LLM call is captured (prompt, response, tokens, duration, errors) into a per-request `DebugTrace`; the conversation router persists it onto the assistant message metadata so you can replay any failure later.
+- **Bilingual canned messages** — English / Arabic user-facing strings (`CannedMessages`) auto-mapped from the `LLMError` that triggered them, so end users see localized, safe messages instead of provider stack traces.
+- **Live log streaming** — `POST /logs` returns an SSE stream of the application's stdout/stderr (authenticated).
+
+---
+
+## Prerequisites
+
+- **Python 3.12+**
+- **[Poetry](https://python-poetry.org/docs/#installation)**
+- **OpenSSL** for generating the JWT key pair
+- *(Optional)* **Docker** if you want to point at MySQL / Postgres / MongoDB / Redis containers instead of running with the bundled SQLite
+
+---
+
+## Setup in 5 steps
+
+```bash
+cd backend
+
+# 1. Install dependencies
+poetry install
+
+# 2. Generate the JWT RSA key pair
+mkdir -p keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+
+# 3. Configure
+#    - Edit `config/config.local.ini` for non-secret settings. Default backend is SQLite.
+#    - Create a folder for the SQLite file — `mkdir -p database` is a good default.
+#    - Create `.env` with secret values referenced as `ENV:VAR_NAME` in the .ini file
+#      (e.g., the OpenAI / Azure OpenAI API key the LLM service expects). The shipped
+#      `config.local.ini` reads `sqlite_db_path = ENV:SQLITE_DB_PATH`, so add a line like
+#      `SQLITE_DB_PATH=database/poc-skeleton.db` to your `.env`.
+
+# 4. Apply database migrations
+#    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).
+poetry run alembic upgrade head
+
+# 5. Run the API
+poetry run api
+# or, equivalently:
+# poetry run uvicorn base.main:app --reload
+```
+
+The API is now serving at `http://localhost:8000`.
+
+---
+
+## Open the docs
+
+- **Swagger UI** — http://localhost:8000/docs
+- **ReDoc** — http://localhost:8000/redoc
+- **Health check** — http://localhost:8000/health-check
+
+Swagger is the fastest way to explore the live API: every endpoint, schema, and authentication requirement is rendered automatically.
+
+---
+
+## Try it end-to-end (curl)
+
+The following five commands take you from cold start to streaming a chat response. They assume the API is on `http://localhost:8000`. The auth endpoints accept JSON bodies with camelCase keys (Pydantic alias generation).
+
+```bash
+# 1. Register a user
+curl -sS -X POST http://localhost:8000/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "demo@example.com",
+    "password": "Demo!Pass123",
+    "firstName": "Demo",
+    "lastName": "User"
+  }'
+
+# 2. Log in and capture the access token
+ACCESS_TOKEN=$(curl -sS -X POST http://localhost:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "demo@example.com", "password": "Demo!Pass123"}' \
+  | python -c 'import sys, json; print(json.load(sys.stdin)["data"]["accessToken"])')
+
+# 3. Create a conversation
+CONVERSATION_ID=$(curl -sS -X POST http://localhost:8000/api/v1/conversations \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Smoke test"}' \
+  | python -c 'import sys, json; print(json.load(sys.stdin)["data"]["conversationId"])')
+
+# 4. Send a non-streaming message
+curl -sS -X POST "http://localhost:8000/api/v1/conversations/$CONVERSATION_ID/messages" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "Say hi in one short sentence."}'
+
+# 5. List the messages so far
+curl -sS "http://localhost:8000/api/v1/conversations/$CONVERSATION_ID/messages" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+For SSE streaming, set `?streaming=true` and use `curl -N` so it doesn't buffer:
+
+```bash
+curl -N -X POST \
+  "http://localhost:8000/api/v1/conversations/$CONVERSATION_ID/messages?streaming=true" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "Tell me a one-line joke about Python."}'
+```
+
+You'll see `StreamStart` → a sequence of `StreamMessage` events with token deltas → `StreamEnd`.
+
+---
+
+## Common tasks
+
+### Add a new router
+
+Drop a file in `base/routers/`, define a `router` named export, and the auto-discovery picks it up — no manual wiring.
+
+```python
+# base/routers/items.py
+from fastapi import APIRouter, Depends
+
+from base.models.orm.user import UserDTO
+from base.services.auth.dependencies import validate_user
+
+router = APIRouter(prefix="/items", tags=["Items"])
+
+
+@router.get("")
+async def list_items(current_user: UserDTO = Depends(validate_user)) -> list[str]:
+    return ["one", "two", "three"]
+```
+
+It's now mounted at `/api/v1/items` after the next reload.
+
+### Register a prompt
+
+Drop a file in `base/services/prompt/templates/`, define a function returning a `Prompt`, and decorate it with `@register_prompt`. The `PromptLoader` auto-imports every module in that directory at startup.
+
+A typical chat-aware template wires three items together: a system instruction, a `MessagesPlaceholder` for prior turns, and a structured user message:
+
+```python
+# base/services/prompt/templates/greeter.py
+from base.models.view_models.prompt import (
+    MessagesPlaceholder,
+    Prompt,
+    PromptTemplate,
+    SystemMessageTemplate,
+    UserMessageTemplate,
+)
+from base.services.prompt.decorator import register_prompt
+
+GREETER_SYSTEM_PROMPT = """You are a friendly multilingual greeter. \
+Reply in {language}."""
+
+USER_INPUT_TEMPLATE = """{user_query}"""
+
+
+@register_prompt
+def greeter() -> Prompt:
+    return Prompt(
+        key="greeter",
+        name="Greeter",
+        description="Greet the user, optionally in context of prior turns.",
+        template=PromptTemplate.from_messages([
+            SystemMessageTemplate(content=GREETER_SYSTEM_PROMPT),
+            MessagesPlaceholder(variable_name="history"),
+            UserMessageTemplate(content=USER_INPUT_TEMPLATE),
+        ]),
+    )
+```
+
+Render it with both the splice-in history and the structured variables:
+
+```python
+rendered = PromptService().render(
+    "greeter",
+    history=stored_messages,  # list[StoredMessage], or [] if you don't have any
+    user_query="Hello!",
+    language="Arabic",
+)
+```
+
+`MessagesPlaceholder` defaults to `optional=True`, so passing `history=[]` (or a missing `history` key) is fine. It rejects `system` / `developer` roles inside the placeholder — those are instructions, not conversation.
+
+### Write an agent
+
+Subclass `AbstractAgent`, set `PROMPT_KEY`, and implement `_execute()`. `arun()` handles the LLM error → canned message → `FlowAbortError` mapping for you. Use the built-in `_aget_history()` helper to feed prior turns into the prompt's `MessagesPlaceholder` — it slices off the trailing `USER` message (which is the current query, already substituted via `{user_query}`):
+
+```python
+# base/services/agents/greeter.py
+from typing import ClassVar
+
+from base.services.agents import AbstractAgent
+from base.services.llm import OpenAIMessageAdapter
+
+
+class GreeterAgent(AbstractAgent):
+    PROMPT_KEY: ClassVar[str] = "greeter"
+    MAX_OUTPUT_TOKENS: ClassVar[int] = 200
+
+    async def _execute(self) -> None:
+        ctx = self._execution_context
+        rendered = self._prompt_service.render(
+            self.PROMPT_KEY,
+            history=await self._aget_history(),
+            user_query=ctx.flow_variables.user_query,
+            language=ctx.flow_variables.locale.value,
+        )
+        result = await self._llm_service.aresponses(
+            OpenAIMessageAdapter.to_responses_input(prompt=rendered),
+            label=type(self).__name__,
+            max_output_tokens=self.MAX_OUTPUT_TOKENS,
+            stream_iterator=ctx.stream_iterator if ctx.streaming else None,
+        )
+        ctx.flow_variables.final_answer = (result.content or "").strip()
+```
+
+Call it from a router with `await GreeterAgent().arun()` after populating the `ExecutionContext`.
+
+---
+
+## Where to go next
+
+- [`README.md`](README.md) — full architecture reference: DI metaclass system, every service, store layer, models, error handling, debug trace, etc.
+- [`README.md#api-endpoints`](README.md#api-endpoints) — endpoint matrix for auth, users, and conversations.
+- [`README.md#agents-abstractagent`](README.md#agents-abstractagent) — the agent template-method pattern in detail.
+- [`README.md#llm-openai`](README.md#llm-openai) — both API surfaces, the `LLMError` hierarchy, retry / content-filter behaviour, and `OpenAIMessageAdapter`.

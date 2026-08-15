@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 
@@ -7,16 +5,14 @@ import httpx
 import requests
 
 from base.models.view_models.http import HttpResponse
-from base.services import AbstractService
-from base.services.common.meta import SingletonABC
+from base.services.common.meta import Singleton
 
 
-class HttpRequestService(AbstractService, metaclass=SingletonABC):
+class HttpRequestService(metaclass=Singleton):
     _BASE_BACKOFF_SECONDS: float = 0.5
     _MAX_RETRIES: int = 3
 
     def __init__(self) -> None:
-        super().__init__()
         self._sync_client: requests.Session = requests.Session()
         self._async_client: httpx.AsyncClient = httpx.AsyncClient(
             http2=True,
@@ -78,7 +74,8 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
         files: dict[str, Any] | None = None,
         timeout: float | None = None,
         retry_count: int = _MAX_RETRIES,
-    ) -> HttpResponse:
+        raw: bool = False,
+    ) -> HttpResponse | bytes:
         last_error: Exception | None = None
 
         for attempt in range(retry_count + 1):
@@ -96,6 +93,9 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
                 )
                 resp.raise_for_status()
 
+                if raw:
+                    return resp.content
+
                 ctype: str = resp.headers.get("Content-Type", "")
                 body_data: dict[str, Any] = self._parse_response_body(
                     content_type=ctype,
@@ -112,9 +112,15 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
 
                     time.sleep(self._BASE_BACKOFF_SECONDS * (attempt + 1))
                     continue
+                if raw:
+                    raise RuntimeError(
+                        f"Request timed out after {retry_count + 1} attempts: {e}"
+                    ) from e
                 return HttpResponse.fail(error=e)
 
             except requests.exceptions.RequestException as e:
+                if raw:
+                    raise RuntimeError(f"Request failed: {e}") from e
                 return HttpResponse.fail(
                     error=e,
                     status_code=e.response.status_code
@@ -123,6 +129,10 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
                     error_detail=self._extract_error_detail(e.response),
                 )
 
+        if raw:
+            raise RuntimeError(
+                f"Request timed out after {retry_count + 1} attempts: {last_error}"
+            )
         return HttpResponse.fail(error=last_error or Exception("Unknown error"))
 
     async def acall_endpoint(
@@ -137,7 +147,8 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
         files: dict[str, Any] | None = None,
         timeout: float | None = None,
         retry_count: int = _MAX_RETRIES,
-    ) -> HttpResponse:
+        raw: bool = False,
+    ) -> HttpResponse | bytes:
         last_error: Exception | None = None
 
         for attempt in range(retry_count + 1):
@@ -156,6 +167,9 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
                 )
                 resp.raise_for_status()
 
+                if raw:
+                    return resp.content
+
                 ctype: str = resp.headers.get("Content-Type", "")
                 body_data: dict[str, Any] = self._parse_response_body(
                     content_type=ctype,
@@ -170,9 +184,17 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
                 if attempt < retry_count:
                     await asyncio.sleep(self._BASE_BACKOFF_SECONDS * (attempt + 1))
                     continue
+                if raw:
+                    raise RuntimeError(
+                        f"Request timed out after {retry_count + 1} attempts: {e}"
+                    ) from e
                 return HttpResponse.fail(error=e)
 
             except httpx.HTTPStatusError as e:
+                if raw:
+                    raise RuntimeError(
+                        f"Request failed with status {e.response.status_code}: {e}"
+                    ) from e
                 return HttpResponse.fail(
                     error=e,
                     status_code=e.response.status_code,
@@ -180,8 +202,14 @@ class HttpRequestService(AbstractService, metaclass=SingletonABC):
                 )
 
             except httpx.RequestError as e:
+                if raw:
+                    raise RuntimeError(f"Request failed: {e}") from e
                 return HttpResponse.fail(error=e)
 
+        if raw:
+            raise RuntimeError(
+                f"Request timed out after {retry_count + 1} attempts: {last_error}"
+            )
         return HttpResponse.fail(error=last_error or Exception("Unknown error"))
 
     def close(self) -> None:

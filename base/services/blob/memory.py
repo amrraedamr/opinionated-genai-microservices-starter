@@ -1,12 +1,10 @@
-import logging
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from base.services.blob import AbstractBlobService, BlobProperties
 from base.services.common.meta import SingletonABC
-
-logger = logging.getLogger(__name__)
+from base.services.logging.console import ConsoleLoggerService
 
 
 @dataclass
@@ -30,22 +28,21 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     def __init__(self) -> None:
         super().__init__()
         self._containers: dict[str, dict[str, _StoredBlob]] = {}
+        self._logger: ConsoleLoggerService = ConsoleLoggerService()
 
-    # -------------------------------------------------------------------------
     # Container Management
-    # -------------------------------------------------------------------------
 
     def create_container(self, container: str) -> None:
         if container not in self._containers:
             self._containers[container] = {}
-            logger.debug("InMemoryBlob: created container %s", container)
+            self._logger.debug("InMemoryBlob: created container %s", container)
 
     async def acreate_container(self, container: str) -> None:
         self.create_container(container)
 
     def delete_container(self, container: str) -> None:
         self._containers.pop(container, None)
-        logger.debug("InMemoryBlob: deleted container %s", container)
+        self._logger.debug("InMemoryBlob: deleted container %s", container)
 
     async def adelete_container(self, container: str) -> None:
         self.delete_container(container)
@@ -56,9 +53,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def acontainer_exists(self, container: str) -> bool:
         return self.container_exists(container)
 
-    # -------------------------------------------------------------------------
     # Upload
-    # -------------------------------------------------------------------------
 
     def upload(
         self,
@@ -91,9 +86,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     ) -> None:
         self.upload(container, blob_name, data, content_type, overwrite, metadata)
 
-    # -------------------------------------------------------------------------
     # Download
-    # -------------------------------------------------------------------------
 
     def download(self, container: str, blob_name: str) -> bytes:
         blob = self._get_blob(container, blob_name)
@@ -102,9 +95,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def adownload(self, container: str, blob_name: str) -> bytes:
         return self.download(container, blob_name)
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     def delete(self, container: str, blob_name: str) -> None:
         blobs = self._get_container(container)
@@ -113,9 +104,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def adelete(self, container: str, blob_name: str) -> None:
         self.delete(container, blob_name)
 
-    # -------------------------------------------------------------------------
     # Exists
-    # -------------------------------------------------------------------------
 
     def exists(self, container: str, blob_name: str) -> bool:
         if container not in self._containers:
@@ -125,9 +114,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def aexists(self, container: str, blob_name: str) -> bool:
         return self.exists(container, blob_name)
 
-    # -------------------------------------------------------------------------
     # Properties
-    # -------------------------------------------------------------------------
 
     def get_properties(self, container: str, blob_name: str) -> BlobProperties:
         blob = self._get_blob(container, blob_name)
@@ -143,9 +130,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def aget_properties(self, container: str, blob_name: str) -> BlobProperties:
         return self.get_properties(container, blob_name)
 
-    # -------------------------------------------------------------------------
     # List Blobs
-    # -------------------------------------------------------------------------
 
     def list_blobs(
         self, container: str, prefix: str | None = None
@@ -179,9 +164,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
                 metadata=blob.metadata,
             )
 
-    # -------------------------------------------------------------------------
     # Generate URL
-    # -------------------------------------------------------------------------
 
     def generate_url(
         self,
@@ -199,9 +182,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     ) -> str:
         return self.generate_url(container, blob_name, expiry_seconds)
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return "In-Memory Blob Storage"
@@ -212,9 +193,7 @@ class InMemoryBlobService(AbstractBlobService, metaclass=SingletonABC):
     async def adispose(self) -> None:
         self.dispose()
 
-    # -------------------------------------------------------------------------
     # Internals
-    # -------------------------------------------------------------------------
 
     def _get_container(self, container: str) -> dict[str, _StoredBlob]:
         if container not in self._containers:

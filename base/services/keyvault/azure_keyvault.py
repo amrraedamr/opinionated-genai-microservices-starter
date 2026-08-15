@@ -7,19 +7,18 @@ from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCreden
 from azure.keyvault.secrets import SecretClient, SecretProperties
 from azure.keyvault.secrets.aio import SecretClient as AsyncSecretClient
 
-from base.services.common.meta import SingletonABC
+from base.services.common.meta import Singleton
 from base.services.configuration.local_config import LocalConfig
-from base.services.keyvault import AbstractKeyVaultService
 
 
-class AzureKeyVaultService(AbstractKeyVaultService, metaclass=SingletonABC):
+class AzureKeyVaultService(metaclass=Singleton):
     def __init__(self) -> None:
         self._client: SecretClient | None = None
         self._async_client: AsyncSecretClient | None = None
         self._credential: DefaultAzureCredential | None = None
         self._async_credential: AsyncDefaultAzureCredential | None = None
 
-    # ── Client lifecycle ──────────────────────────────────────────────
+    # Client lifecycle
 
     @property
     def client(self) -> SecretClient:
@@ -69,7 +68,7 @@ class AzureKeyVaultService(AbstractKeyVaultService, metaclass=SingletonABC):
     async def __aexit__(self, *args: Any) -> None:
         await self.aclose()
 
-    # ── Secret operations ─────────────────────────────────────────────
+    # Secret operations
 
     def get_secret(self, secret_name: str) -> str | None:
         formatted: str = self.format_secret_name(secret_name)
@@ -130,7 +129,7 @@ class AzureKeyVaultService(AbstractKeyVaultService, metaclass=SingletonABC):
     def alist_secrets(self) -> AsyncIterator[SecretProperties]:
         return self.async_client.list_properties_of_secrets()
 
-    # ── Naming ────────────────────────────────────────────────────────
+    # Naming
 
     def format_secret_name(
         self, secret_name: str, allowed_prefix: str | None = None

@@ -1,6 +1,14 @@
 import re
 
 
+def validate_name(name: str) -> str:
+    if not re.match(r"^[A-Za-z]+(?:[-'][A-Za-z]+)*$", name):
+        raise ValueError(
+            "Name must contain only letters, hyphens, or apostrophes, and cannot start or end with a hyphen or apostrophe."
+        )
+    return name
+
+
 def validate_password(password: str) -> str:
     violations = []
     if len(password) < 8:

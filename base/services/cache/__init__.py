@@ -3,18 +3,12 @@ from typing import Any, AsyncGenerator
 from uuid import UUID, uuid5
 
 from base.models.definitions.cache import CacheChannels, CacheKeys
-from base.services import AbstractService
 
 
-class AbstractCacheService(AbstractService, ABC):
+class AbstractCacheService(ABC):
     """Abstract class for cache service."""
 
-    def __init__(self) -> None:
-        super().__init__()
-
-    # -------------------------------------------------------------------------
     # Basic Get/Set
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get(
@@ -64,9 +58,7 @@ class AbstractCacheService(AbstractService, ABC):
     ) -> None:
         """Asynchronously removes data from the cache using key and namespace (optional)."""
 
-    # -------------------------------------------------------------------------
     # Hashset Operations
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get_hashset_pairs(
@@ -124,9 +116,7 @@ class AbstractCacheService(AbstractService, ABC):
     ) -> None:
         """Asynchronously stores hash data in the cache using key and namespace (optional)."""
 
-    # -------------------------------------------------------------------------
     # List Operations
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def append_to_list(
@@ -178,9 +168,7 @@ class AbstractCacheService(AbstractService, ABC):
     ) -> None:
         """Asynchronously clears a list from the cache."""
 
-    # -------------------------------------------------------------------------
     # Distributed Locks
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def acquire_lock(
@@ -212,9 +200,7 @@ class AbstractCacheService(AbstractService, ABC):
     ) -> None:
         """Asynchronously releases a distributed lock."""
 
-    # -------------------------------------------------------------------------
     # Pub/Sub
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def publish(
@@ -250,17 +236,13 @@ class AbstractCacheService(AbstractService, ABC):
     ) -> None:
         """Asynchronously publish a batch of messages to a channel."""
 
-    # -------------------------------------------------------------------------
     # Misc
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get_service_name(self) -> str:
         """Returns the name of the cache service."""
 
-    # -------------------------------------------------------------------------
     # Internals
-    # -------------------------------------------------------------------------
 
     @staticmethod
     def _resolve_channel(channel: CacheChannels | str) -> str:

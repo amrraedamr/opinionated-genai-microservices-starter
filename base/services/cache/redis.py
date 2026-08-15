@@ -12,10 +12,6 @@ from base.tools.deserializers import ExpansiveDecoder
 from base.tools.misc import generic_deep_deserialize
 from base.tools.serializers import serialize
 
-# redis-py stubs use a shared ResponseT = Union[Awaitable[T], T] across sync and
-# async clients, making pyright unable to narrow return types. All direct redis
-# calls that return values or are awaited require type: ignore annotations.
-
 
 class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     SERVICE_NAME: ClassVar[str] = "Redis Cache"
@@ -24,9 +20,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         super().__init__()
         self._redis_client = RedisClient()
 
-    # -------------------------------------------------------------------------
     # Basic Get/Set
-    # -------------------------------------------------------------------------
 
     def get(
         self,
@@ -34,7 +28,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         namespace: UUID | str | None = None,
         value_type: Any = str,
     ) -> Any:
-        result: str | None = self._redis_client.sync_client.get(  # type: ignore[assignment]
+        result: str | None = self._redis_client.sync_client.get(  # type: ignore
             self._get_key(key, namespace)
         )
         if not result:
@@ -49,7 +43,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         namespace: UUID | str | None = None,
         value_type: Any = str,
     ) -> Any:
-        result: str | None = await self._redis_client.async_client.get(  # type: ignore[misc]
+        result: str | None = await self._redis_client.async_client.get(  # type: ignore
             self._get_key(key, namespace)
         )
         if not result:
@@ -78,7 +72,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         value: Any = None,
         ttl_seconds: int | None = None,
     ) -> None:
-        await self._redis_client.async_client.set(  # type: ignore[misc]
+        await self._redis_client.async_client.set(  # type: ignore
             name=self._get_key(key, namespace),
             value=serialize(value),
             ex=ttl_seconds,
@@ -90,18 +84,16 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aremove(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> None:
-        await self._redis_client.async_client.delete(  # type: ignore[misc]
+        await self._redis_client.async_client.delete(  # type: ignore
             self._get_key(key, namespace)
         )
 
-    # -------------------------------------------------------------------------
     # Hashset Operations
-    # -------------------------------------------------------------------------
 
     def get_hashset_pairs(
         self, key: CacheKeys | str, namespace: UUID | None = None, *hashset_keys: str
     ) -> dict | None:
-        result: list[str | None] = self._redis_client.sync_client.hmget(  # type: ignore[assignment]
+        result: list[str | None] = self._redis_client.sync_client.hmget(  # type: ignore
             self._get_key(key, namespace), list(hashset_keys)
         )
         if not result or len(result) != len(hashset_keys):
@@ -111,7 +103,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aget_hashset_pairs(
         self, key: CacheKeys | str, namespace: UUID | None = None, *hashset_keys: str
     ) -> dict | None:
-        result: list[str | None] = await self._redis_client.async_client.hmget(  # type: ignore[misc]
+        result: list[str | None] = await self._redis_client.async_client.hmget(  # type: ignore
             self._get_key(key, namespace), list(hashset_keys)
         )
         if not result or len(result) != len(hashset_keys):
@@ -137,7 +129,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     def get_hashset_all(
         self, key: CacheKeys | str, namespace: UUID | None = None
     ) -> dict | None:
-        result: dict[str, str] = self._redis_client.sync_client.hgetall(  # type: ignore[assignment]
+        result: dict[str, str] = self._redis_client.sync_client.hgetall(  # type: ignore
             self._get_key(key, namespace)
         )
         if not result:
@@ -150,7 +142,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aget_hashset_all(
         self, key: CacheKeys | str, namespace: UUID | None = None
     ) -> dict | None:
-        result: dict[str, str] = await self._redis_client.async_client.hgetall(  # type: ignore[misc]
+        result: dict[str, str] = await self._redis_client.async_client.hgetall(  # type: ignore
             self._get_key(key, namespace)
         )
         if not result:
@@ -184,9 +176,9 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         if hashset is None:
             return
         composite_key = self._get_key(key, namespace)
-        await self._redis_client.async_client.hset(name=composite_key, mapping=hashset)  # type: ignore[misc]
+        await self._redis_client.async_client.hset(name=composite_key, mapping=hashset)  # type: ignore
         if ttl_seconds is not None:
-            await self._redis_client.async_client.expire(composite_key, ttl_seconds)  # type: ignore[misc]
+            await self._redis_client.async_client.expire(composite_key, ttl_seconds)  # type: ignore
 
     def delete_hashset_pairs(
         self, key: CacheKeys | str, namespace: UUID | None = None, *hashset_keys: str
@@ -198,13 +190,11 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def adelete_hashset_pairs(
         self, key: CacheKeys | str, namespace: UUID | None = None, *hashset_keys: str
     ) -> None:
-        await self._redis_client.async_client.hdel(  # type: ignore[misc]
+        await self._redis_client.async_client.hdel(  # type: ignore
             self._get_key(key, namespace), *hashset_keys
         )
 
-    # -------------------------------------------------------------------------
     # List Operations
-    # -------------------------------------------------------------------------
 
     def append_to_list(
         self,
@@ -225,13 +215,13 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         ttl_seconds: int = 600,
     ) -> None:
         composite_key = self._get_key(key, namespace)
-        await self._redis_client.async_client.rpush(composite_key, serialize(value))  # type: ignore[misc]
-        await self._redis_client.async_client.expire(composite_key, ttl_seconds)  # type: ignore[misc]
+        await self._redis_client.async_client.rpush(composite_key, serialize(value))  # type: ignore
+        await self._redis_client.async_client.expire(composite_key, ttl_seconds)  # type: ignore
 
     def get_list(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> list[Any]:
-        items: list[str] = self._redis_client.sync_client.lrange(  # type: ignore[assignment]
+        items: list[str] = self._redis_client.sync_client.lrange(  # type: ignore
             self._get_key(key, namespace), 0, -1
         )
         return [json.loads(x, cls=ExpansiveDecoder) for x in items] if items else []
@@ -239,7 +229,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aget_list(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> list[Any]:
-        items: list[str] = await self._redis_client.async_client.lrange(  # type: ignore[misc]
+        items: list[str] = await self._redis_client.async_client.lrange(  # type: ignore
             self._get_key(key, namespace), 0, -1
         )
         return [json.loads(x, cls=ExpansiveDecoder) for x in items] if items else []
@@ -247,7 +237,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aget_list_raw(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> list[str]:
-        items: list[bytes | str] = await self._redis_client.async_client.lrange(  # type: ignore[misc]
+        items: list[bytes | str] = await self._redis_client.async_client.lrange(  # type: ignore
             self._get_key(key, namespace), 0, -1
         )
         return (
@@ -264,13 +254,11 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def aclear_list(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> None:
-        await self._redis_client.async_client.delete(  # type: ignore[misc]
+        await self._redis_client.async_client.delete(  # type: ignore
             self._get_key(key, namespace)
         )
 
-    # -------------------------------------------------------------------------
     # Distributed Locks
-    # -------------------------------------------------------------------------
 
     def acquire_lock(
         self,
@@ -290,7 +278,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         namespace: UUID | str | None = None,
         ttl_seconds: int = 30,
     ) -> bool:
-        result = await self._redis_client.async_client.set(  # type: ignore[misc]
+        result = await self._redis_client.async_client.set(  # type: ignore
             self._get_key(key, namespace), "1", nx=True, ex=ttl_seconds
         )
         return bool(result)
@@ -303,13 +291,11 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
     async def arelease_lock(
         self, key: CacheKeys | str, namespace: UUID | str | None = None
     ) -> None:
-        await self._redis_client.async_client.delete(  # type: ignore[misc]
+        await self._redis_client.async_client.delete(  # type: ignore
             self._get_key(key, namespace)
         )
 
-    # -------------------------------------------------------------------------
     # Pub/Sub
-    # -------------------------------------------------------------------------
 
     def publish(
         self, channel: CacheChannels | str, message: str, ttl_seconds: int = 86400
@@ -320,7 +306,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         pipe.rpush(f"{ch}:history", message)
         pipe.ltrim(f"{ch}:history", -10_000, -1)
         pipe.expire(f"{ch}:history", ttl_seconds)
-        results: list[Any] = pipe.execute()  # type: ignore[assignment]
+        results: list[Any] = pipe.execute()  # type: ignore
         return results[0]
 
     async def apublish(
@@ -332,7 +318,7 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
         pipe.rpush(f"{ch}:history", message)
         pipe.ltrim(f"{ch}:history", -10_000, -1)
         pipe.expire(f"{ch}:history", ttl_seconds)
-        results: list[Any] = await pipe.execute()  # type: ignore[misc]
+        results: list[Any] = await pipe.execute()  # type: ignore
         return results[0]
 
     async def subscribe(
@@ -381,11 +367,9 @@ class RedisCacheService(AbstractCacheService, metaclass=SingletonABC):
             pipe.rpush(f"{ch}:history", message)
         pipe.ltrim(f"{ch}:history", -10_000, -1)
         pipe.expire(f"{ch}:history", ttl_seconds)
-        await pipe.execute()  # type: ignore[misc]
+        await pipe.execute()  # type: ignore
 
-    # -------------------------------------------------------------------------
     # Misc
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return self.SERVICE_NAME

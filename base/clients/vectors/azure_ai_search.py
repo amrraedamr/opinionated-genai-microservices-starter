@@ -34,9 +34,7 @@ class AzureAISearchClient(metaclass=Singleton):
         self._sync_search_clients: dict[str, SearchClient] = {}
         self._async_search_clients: dict[str, AsyncSearchClient] = {}
 
-    # -------------------------------------------------------------------------
     # Index Client (for index management)
-    # -------------------------------------------------------------------------
 
     @property
     def sync_index_client(self) -> SearchIndexClient:
@@ -56,9 +54,7 @@ class AzureAISearchClient(metaclass=Singleton):
             )
         return self._async_index_client
 
-    # -------------------------------------------------------------------------
     # Search Client (per-index, cached)
-    # -------------------------------------------------------------------------
 
     def get_search_client(self, index_name: str) -> SearchClient:
         """Get or create a sync SearchClient for a specific index."""
@@ -80,9 +76,7 @@ class AzureAISearchClient(metaclass=Singleton):
             )
         return self._async_search_clients[index_name]
 
-    # -------------------------------------------------------------------------
     # Health & Lifecycle
-    # -------------------------------------------------------------------------
 
     def ping(self) -> bool:
         """Sync health check via listing indexes."""

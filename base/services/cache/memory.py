@@ -43,9 +43,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
         self._lock = threading.Lock()
         self._subscribers: dict[str, list[asyncio.Queue[str]]] = defaultdict(list)
 
-    # -------------------------------------------------------------------------
     # TTL helpers
-    # -------------------------------------------------------------------------
 
     def _get_entry(self, store: dict[str, _TTLEntry], key: str) -> _TTLEntry | None:
         entry = store.get(key)
@@ -56,9 +54,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
             return None
         return entry
 
-    # -------------------------------------------------------------------------
     # Basic Get/Set
-    # -------------------------------------------------------------------------
 
     def get(
         self,
@@ -114,9 +110,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
     ) -> None:
         self.remove(key, namespace)
 
-    # -------------------------------------------------------------------------
     # Hashset Operations
-    # -------------------------------------------------------------------------
 
     def get_hashset_pairs(
         self, key: CacheKeys | str, namespace: UUID | None = None, *hashset_keys: str
@@ -217,9 +211,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
     ) -> None:
         self.delete_hashset_pairs(key, namespace, *hashset_keys)
 
-    # -------------------------------------------------------------------------
     # List Operations
-    # -------------------------------------------------------------------------
 
     def append_to_list(
         self,
@@ -285,9 +277,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
     ) -> None:
         self.clear_list(key, namespace)
 
-    # -------------------------------------------------------------------------
     # Locks
-    # -------------------------------------------------------------------------
 
     def acquire_lock(
         self,
@@ -321,9 +311,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
     ) -> None:
         self.remove(key, namespace)
 
-    # -------------------------------------------------------------------------
     # Pub/Sub
-    # -------------------------------------------------------------------------
 
     def publish(
         self, channel: CacheChannels | str, message: str, ttl_seconds: int = 86400
@@ -382,9 +370,7 @@ class InMemoryCacheService(AbstractCacheService, metaclass=SingletonABC):
         for message in messages:
             self.publish(channel, message, ttl_seconds)
 
-    # -------------------------------------------------------------------------
     # Misc
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return self.SERVICE_NAME

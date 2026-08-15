@@ -1,8 +1,38 @@
 from enum import StrEnum
 
 
+class SQLBackend(StrEnum):
+    SQLITE = "sqlite"
+    MYSQL = "mysql"
+    POSTGRESQL = "postgresql"
+
+    @property
+    def sync_driver(self) -> str:
+        match self:
+            case SQLBackend.SQLITE:
+                return "pysqlite"
+            case SQLBackend.MYSQL:
+                return "pymysql"
+            case SQLBackend.POSTGRESQL:
+                return "psycopg2"
+
+    @property
+    def async_driver(self) -> str:
+        match self:
+            case SQLBackend.SQLITE:
+                return "aiosqlite"
+            case SQLBackend.MYSQL:
+                return "aiomysql"
+            case SQLBackend.POSTGRESQL:
+                return "asyncpg"
+
+
 class DatabaseTable(StrEnum):
     USER = "user"
+    PROMPT = "prompt"
+    ACTIVE_PROMPT = "active_prompt"
+    CONVERSATION = "conversation"
+    CHAT_HISTORY_MESSAGE = "chat_history_message"
 
 
 class Locale(StrEnum):

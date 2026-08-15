@@ -27,6 +27,7 @@ ENV/
 # Environment & secrets
 .env
 .env.*
+!.env.example
 
 # Keys & certificates
 keys/
@@ -65,3 +66,4 @@ htmlcov/
 
 # Misc
 CLAUDE.md
+claude-memory/

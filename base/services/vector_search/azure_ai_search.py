@@ -52,9 +52,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         )
         self._key_field: str = LocalConfig.get("azure_search_key_field") or "id"
 
-    # -------------------------------------------------------------------------
     # Collection / Index Management
-    # -------------------------------------------------------------------------
 
     def create_collection(
         self,
@@ -92,9 +90,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         ]
         return collection in names
 
-    # -------------------------------------------------------------------------
     # Upsert
-    # -------------------------------------------------------------------------
 
     def upsert(self, collection: str, records: list[VectorRecord]) -> None:
         client = self._client.get_search_client(collection)
@@ -110,9 +106,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
             documents = [self._record_to_document(r) for r in batch]
             await client.merge_or_upload_documents(documents)
 
-    # -------------------------------------------------------------------------
     # Search
-    # -------------------------------------------------------------------------
 
     def search(
         self,
@@ -170,9 +164,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
             output.append(self._document_to_search_result(doc, score))
         return output
 
-    # -------------------------------------------------------------------------
     # Get by ID
-    # -------------------------------------------------------------------------
 
     def get(
         self,
@@ -206,9 +198,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
                 continue
         return records
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     def delete(self, collection: str, ids: list[str]) -> None:
         client = self._client.get_search_client(collection)
@@ -222,9 +212,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         for i in range(0, len(documents), VECTOR_UPSERT_BATCH_SIZE):
             await client.delete_documents(documents[i : i + VECTOR_UPSERT_BATCH_SIZE])
 
-    # -------------------------------------------------------------------------
     # Count
-    # -------------------------------------------------------------------------
 
     def count(self, collection: str) -> int:
         client = self._client.get_search_client(collection)
@@ -234,9 +222,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         client = self._client.get_async_search_client(collection)
         return await client.get_document_count()
 
-    # -------------------------------------------------------------------------
     # Scroll
-    # -------------------------------------------------------------------------
 
     def scroll(
         self,
@@ -296,9 +282,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
 
         return records, next_offset
 
-    # -------------------------------------------------------------------------
     # Health Check
-    # -------------------------------------------------------------------------
 
     def health_check(self) -> bool:
         try:
@@ -319,9 +303,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     def get_service_name(self) -> str:
         return "Azure AI Search"
@@ -332,9 +314,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
     async def adispose(self) -> None:
         await self._client.aclose()
 
-    # -------------------------------------------------------------------------
     # Internals
-    # -------------------------------------------------------------------------
 
     def _build_index(
         self,

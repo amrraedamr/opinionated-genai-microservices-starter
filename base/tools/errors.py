@@ -35,10 +35,10 @@ def raise_error(
     message: str | None = None,
     status_code: int | None = None,
 ) -> Never:
-    if error:
+    if error is not None:
         raise ErrorsException(error_enum=error)
-    else:
-        raise ErrorsException(message=message, status_code=status_code)
+
+    raise ErrorsException(message=message, status_code=status_code)
 
 
 # def error_response(

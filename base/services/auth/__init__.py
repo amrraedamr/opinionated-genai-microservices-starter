@@ -19,17 +19,15 @@ from base.models.view_models.auth import (
     RefreshToken,
     TokenPair,
 )
-from base.services import AbstractService
 from base.services.auth.auths import http_bearer
-from base.services.common.meta import SingletonABC
+from base.services.common.meta import Singleton
 from base.services.configuration.local_config import LocalConfig
 from base.services.store.user import UserStore
 from base.tools.errors import raise_error
 
 
-class AuthService(AbstractService, metaclass=SingletonABC):
+class AuthService(metaclass=Singleton):
     def __init__(self) -> None:
-        super().__init__()
         self._user_store: UserStore = UserStore()
         self._private_key: str = self._load_key(
             LocalConfig.get("auth_private_key_path") or ""
@@ -44,9 +42,7 @@ class AuthService(AbstractService, metaclass=SingletonABC):
             "refresh_token_expiry_seconds", 604800
         )  # 7 days
 
-    # -------------------------
     # Public
-    # -------------------------
 
     def generate_token_pair(self, user: UserDTO) -> TokenPair:
         access_token = self._generate_access_token(
@@ -76,9 +72,7 @@ class AuthService(AbstractService, metaclass=SingletonABC):
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         return await self._user_store.aget(uuid.UUID(user_id))
 
-    # -------------------------
     # Private
-    # -------------------------
 
     def _generate_access_token(self, payload: dict[str, Any]) -> AccessToken:
         return AccessToken(self._generate_token(payload, self._access_token_expiry))
@@ -115,9 +109,7 @@ class AuthService(AbstractService, metaclass=SingletonABC):
         except ExpiredSignatureError:
             raise_error(AuthErrors.USER_TOKEN_EXPIRED)
 
-    # -------------------------
     # Helpers
-    # -------------------------
 
     @staticmethod
     def _load_key(path: str) -> str:

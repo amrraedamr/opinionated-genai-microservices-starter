@@ -3,24 +3,31 @@ import json
 import os
 from configparser import ConfigParser
 
+from dotenv import load_dotenv
+
 
 class LocalConfig:
     _parser: ConfigParser | None = None
 
     environment: str = os.environ.get("ENVIRONMENT", "local")
-    build_version: str = os.environ.get("BUILD_VERSION", "0.0.1")
+
+    _env_loaded: bool = False
 
     @staticmethod
     def _load() -> bool:
         if LocalConfig._parser is None:
             LocalConfig._parser = ConfigParser()
-            LocalConfig._parser.read(f"config.{LocalConfig.environment}.ini")
+            LocalConfig._parser.read(f"config/config.{LocalConfig.environment}.ini")
 
             section = LocalConfig.environment
             if section not in LocalConfig._parser:
                 raise ValueError(
-                    f"Config section '{section}' is missing in config.{LocalConfig.environment}.ini"
+                    f"Config section '{section}' is missing in config/config.{LocalConfig.environment}.ini"
                 )
+
+        if not LocalConfig._env_loaded:
+            load_dotenv()
+            LocalConfig._env_loaded = True
 
         return True
 

@@ -2,10 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from base.models.view_models.vector_search import VectorRecord, VectorSearchResult
-from base.services import AbstractService
 
 
-class AbstractVectorSearchService(AbstractService, ABC):
+class AbstractVectorSearchService(ABC):
     """
     Abstract base class for vector search services with both sync and async
     support.
@@ -14,12 +13,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     backend (e.g. Qdrant, Azure AI Search).
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-
-    # -------------------------------------------------------------------------
     # Collection / Index Management
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def create_collection(
@@ -65,9 +59,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     async def acollection_exists(self, collection: str) -> bool:
         """Check whether a collection/index exists asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Upsert
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def upsert(self, collection: str, records: list[VectorRecord]) -> None:
@@ -81,9 +73,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     async def aupsert(self, collection: str, records: list[VectorRecord]) -> None:
         """Insert or update vector records asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Search
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def search(
@@ -117,9 +107,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     ) -> list[VectorSearchResult]:
         """Perform a similarity search asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Get by ID
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get(
@@ -139,9 +127,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     ) -> list[VectorRecord]:
         """Retrieve records by their IDs asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Delete
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def delete(self, collection: str, ids: list[str]) -> None:
@@ -151,9 +137,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     async def adelete(self, collection: str, ids: list[str]) -> None:
         """Delete records by their IDs asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Count
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def count(self, collection: str) -> int:
@@ -163,9 +147,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     async def acount(self, collection: str) -> int:
         """Return the number of records in a collection asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Scroll / List
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def scroll(
@@ -194,9 +176,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     ) -> tuple[list[VectorRecord], str | None]:
         """Iterate over records in a collection asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Health Check
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def health_check(self) -> bool:
@@ -206,9 +186,7 @@ class AbstractVectorSearchService(AbstractService, ABC):
     async def ahealth_check(self) -> bool:
         """Verify the vector database is accessible asynchronously."""
 
-    # -------------------------------------------------------------------------
     # Metadata & Lifecycle
-    # -------------------------------------------------------------------------
 
     @abstractmethod
     def get_service_name(self) -> str:

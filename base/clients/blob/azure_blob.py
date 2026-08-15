@@ -24,9 +24,7 @@ class AzureBlobClient(metaclass=Singleton):
         self._credential: DefaultAzureCredential | None = None
         self._async_credential: AsyncDefaultAzureCredential | None = None
 
-    # -------------------------------------------------------------------------
     # Client accessors (lazy init)
-    # -------------------------------------------------------------------------
 
     @property
     def sync_client(self) -> BlobServiceClient:
@@ -48,9 +46,7 @@ class AzureBlobClient(metaclass=Singleton):
             )
         return self._async_client
 
-    # -------------------------------------------------------------------------
     # Health & Lifecycle
-    # -------------------------------------------------------------------------
 
     def ping(self) -> bool:
         try:

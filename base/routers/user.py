@@ -28,12 +28,14 @@ async def get_user(
     )
 
 
-@router.put("/me", response_model=BaseResponse[EditUserResponse])
+@router.patch("/me", response_model=BaseResponse[EditUserResponse])
 async def edit_user(
     request: EditUserRequest,
     current_user: UserDTO = Depends(validate_user),
 ) -> BaseResponse[EditUserResponse]:
-    current_user.update_from_dict(request.model_dump(exclude_unset=True))
+    current_user.update_from_dict(
+        request.serialize(exclude_unset=True, exclude_none=True, by_alias=False)
+    )
     await UserStore().aedit(current_user.id, current_user)
     return BaseResponse(data=EditUserResponse())
 

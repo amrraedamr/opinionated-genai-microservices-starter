@@ -13,15 +13,24 @@ A production-ready Python backend skeleton built with FastAPI, featuring a layer
 - [Dependency Injection (Metaclass System)](#dependency-injection-metaclass-system)
 - [Services](#services)
   - [SQL Databases](#sql-databases)
-  - [NoSQL (MongoDB)](#nosql-mongodb)
+  - [NoSQL (MongoDB, CosmosDB)](#nosql-mongodb-cosmosdb)
   - [Redis Cache](#redis-cache)
   - [Blob Storage](#blob-storage)
   - [Key Vault](#key-vault)
   - [Vector Search](#vector-search)
   - [Text Embeddings](#text-embeddings)
   - [LLM (OpenAI)](#llm-openai)
+  - [Prompt Management](#prompt-management)
+  - [Chat History](#chat-history)
+  - [Conversations](#conversations)
+  - [Background Tasks](#background-tasks)
   - [HTTP Client](#http-client)
   - [Logging](#logging)
+- [Agents (AbstractAgent)](#agents-abstractagent)
+- [Execution Context](#execution-context)
+- [Debug Trace](#debug-trace)
+- [Localization & Canned Messages](#localization--canned-messages)
+- [Error Handling](#error-handling)
 - [Authentication](#authentication)
 - [Store (Repository) Layer](#store-repository-layer)
 - [Models](#models)
@@ -63,9 +72,21 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 ### Configure
 
-1. Edit `config.local.ini` — fill in values for the services you need (SQLite works out of the box)
-2. For other environments, edit the corresponding `config.{environment}.ini` file (e.g., `config.dev.ini`, `config.uat.ini`, `config.staging.ini`, `config.prod.ini`)
-3. If using Key Vault secret loading, edit `config.keyvault.ini` with your tag prefixes
+1. Edit `config/config.local.ini` — fill in values for the services you need. The default `sql_backend = sqlite` works out of the box once you point it at a path that exists.
+2. Create a `.env` file in the repo root with your secret values (API keys, passwords). The `.env` file is gitignored. Secret keys in `config.local.ini` use the `ENV:` prefix to resolve from environment variables (e.g., `pg_password = ENV:POSTGRES_PASSWORD`).
+3. **SQLite database path.** The shipped `config.local.ini` has `sqlite_db_path = ENV:SQLITE_DB_PATH`, so you need to:
+   - Create a folder for the database file (any path, e.g. `mkdir -p database`).
+   - Add `SQLITE_DB_PATH=database/poc-skeleton.db` (or whatever path you chose) to your `.env`.
+   - Alembic will create the `.db` file inside that folder on the first `alembic upgrade head`. The file itself is gitignored.
+4. For other environments, edit the corresponding `config/config.{environment}.ini` file. In Docker/deployment, secrets are provided via deployment environment variables instead of a `.env` file.
+5. If using Key Vault secret loading, edit `config/config.keyvault.ini` with your tag prefixes.
+
+### Run Migrations
+
+```bash
+# Apply all migrations (creates/updates database schema)
+poetry run alembic upgrade head
+```
 
 ### Run
 
@@ -79,142 +100,218 @@ poetry run uvicorn base.main:app --reload
 
 The API will be available at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
 
+### Database Migrations (Alembic)
+
+Schema changes are managed via Alembic. The migration environment reads `sql_backend` from `config.{environment}.ini` to target the correct database.
+
+```bash
+# Apply all pending migrations
+poetry run alembic upgrade head
+
+# Generate a new migration after changing ORM models
+poetry run alembic revision --autogenerate -m "description of change"
+
+# Rollback one migration
+poetry run alembic downgrade -1
+
+# View current migration status
+poetry run alembic current
+```
+
 ---
 
 ## Project Structure
 
 ```
-backend/
+.
 ├── base/
-│   ├── __init__.py                  # Entry point (calls run_webserver)
-│   ├── main.py                      # FastAPI app, lifespan, middleware, routes
+│   ├── __init__.py                       # Entry point (calls run_webserver)
+│   ├── main.py                           # FastAPI app, lifespan, register_request middleware, routes
 │   │
-│   ├── clients/                     # Low-level database/service clients
+│   ├── clients/                          # Low-level database/service clients
 │   │   ├── blob/
-│   │   │   └── azure_blob.py        # Azure Blob Storage client (sync + async)
+│   │   │   └── azure_blob.py             # Azure Blob Storage client (sync + async)
 │   │   ├── nosql/
-│   │   │   └── mongodb.py           # MongoDB client (Motor async driver)
+│   │   │   ├── cosmosdb.py               # Azure Cosmos DB client (SQL API, sync + async)
+│   │   │   └── mongodb.py                # MongoDB client (PyMongo sync + async)
 │   │   ├── redis/
-│   │   │   └── __init__.py          # Redis client (aioredis async)
+│   │   │   └── __init__.py               # Redis client (aioredis async)
 │   │   ├── sql/
-│   │   │   ├── mysql.py             # MySQL client (aiomysql async)
-│   │   │   ├── postgresql.py        # PostgreSQL client (asyncpg)
-│   │   │   └── sqlite.py            # SQLite client (aiosqlite async)
+│   │   │   └── client.py                 # SQLClient (unified, driven by SQLBackend enum)
 │   │   └── vectors/
-│   │       ├── azure_ai_search.py   # Azure AI Search client
-│   │       └── qdrant.py            # Qdrant vector DB client
+│   │       ├── azure_ai_search.py        # Azure AI Search client
+│   │       └── qdrant.py                 # Qdrant vector DB client
 │   │
 │   ├── models/
-│   │   ├── definitions/             # Enums, constants, error definitions
-│   │   │   ├── cache.py             # Cache channel enums
-│   │   │   ├── database.py          # Database table name constants
-│   │   │   ├── errors.py            # Auth, Database, Generic error enums
-│   │   │   ├── exceptions.py        # Exception categories
-│   │   │   ├── message.py           # Message role enum
-│   │   │   ├── model.py             # LLM provider type enum
-│   │   │   └── vector_search.py     # Vector search distance metrics
-│   │   ├── orm/                     # SQLAlchemy ORM models
-│   │   │   ├── __init__.py          # Base, TimestampMixin, auto-import
-│   │   │   └── user.py              # UserDTO model
-│   │   └── view_models/             # Pydantic request/response models
-│   │       ├── __init__.py          # BaseModel, BaseResponse, ErrorResponse
-│   │       ├── auth.py              # Auth request/response models, token types
-│   │       ├── database.py          # Pagination, sorting, filtered params
-│   │       ├── http.py              # HttpResponse model
-│   │       ├── model.py             # ModelConfigurations, EmbeddingConfigurations
-│   │       ├── streams.py           # SSE stream message models
-│   │       ├── user.py              # User CRUD request/response models
-│   │       └── vector_search.py     # Vector search result models
+│   │   ├── definitions/                  # Enums, constants, error definitions
+│   │   │   ├── background_tasks.py       # TaskStatus, BackgroundTaskBackend
+│   │   │   ├── cache.py                  # Cache channel enums
+│   │   │   ├── canned_messages.py        # CannedMessages — bilingual user-facing strings
+│   │   │   ├── database.py               # SQLBackend, DatabaseTable, Locale, SortingOrder
+│   │   │   ├── errors.py                 # Auth, Database, Generic error enums
+│   │   │   ├── exceptions.py             # Exception categories
+│   │   │   ├── message.py                # MessageRole (system/developer/user/assistant/tool)
+│   │   │   ├── model.py                  # LLM provider type enum
+│   │   │   └── vector_search.py          # Vector search distance metrics
+│   │   ├── orm/                          # SQLAlchemy ORM models
+│   │   │   ├── __init__.py               # Base, TimestampMixin, auto-import
+│   │   │   ├── chat_history_message.py   # ChatHistoryMessageDTO model
+│   │   │   ├── conversation.py           # ConversationDTO model
+│   │   │   ├── prompt.py                 # PromptDTO, ActivePromptDTO models
+│   │   │   └── user.py                   # UserDTO model
+│   │   └── view_models/                  # Pydantic request/response models
+│   │       ├── __init__.py               # BaseModel, BaseResponse, ErrorResponse, DebugContext
+│   │       ├── auth.py                   # Auth request/response models, token types
+│   │       ├── background_tasks.py       # TaskHandle
+│   │       ├── chat.py                   # SendChatRequest/Response, ChatMessageView, ListChatResponse
+│   │       ├── chat_history.py           # StoredMessage, StoredToolCall, ConversationId, ChatHistoryConfig
+│   │       ├── conversation.py           # CRUD request/response models for conversations
+│   │       ├── database.py               # Pagination, sorting, filtered params
+│   │       ├── debug_trace.py            # DebugCall, FlowEvent, DebugTrace
+│   │       ├── execution_context.py      # FlowVariables
+│   │       ├── flow.py                   # FlowAbortError
+│   │       ├── http.py                   # HttpResponse model
+│   │       ├── llm_exception.py          # LLMError hierarchy
+│   │       ├── llm_result.py             # CompletionResult, ResponseResult, Parsed*Result
+│   │       ├── model.py                  # ModelConfigurations, EmbeddingConfigurations
+│   │       ├── models.py                 # OpenAIModels enum
+│   │       ├── prompt/                   # Prompt subpackage
+│   │       │   ├── __init__.py           # Re-exports
+│   │       │   ├── prompt.py             # Prompt view model
+│   │       │   ├── prompt_template.py    # PromptTemplate, *MessageTemplate
+│   │       │   └── rendered_prompt.py    # RenderedPrompt, RenderedPromptInstruction/Message
+│   │       ├── streams.py                # SSE stream message models
+│   │       ├── user.py                   # User CRUD request/response models
+│   │       └── vector_search.py          # Vector search result models
 │   │
-│   ├── routers/                     # FastAPI routers (auto-discovered)
-│   │   ├── auth.py                  # /auth — register, login, refresh (placeholder)
-│   │   └── user.py                  # /users — get/edit/delete me (placeholder)
+│   ├── routers/                          # FastAPI routers (auto-discovered)
+│   │   ├── auth.py                       # /auth — register, login, refresh
+│   │   ├── conversation.py               # /conversations — CRUD + chat send/list
+│   │   └── user.py                       # /users — get/edit/delete me
 │   │
 │   ├── services/
-│   │   ├── __init__.py              # AbstractService base class
+│   │   ├── __init__.py
+│   │   ├── agents/
+│   │   │   ├── __init__.py               # AbstractAgent template-method base
+│   │   │   └── test.py                   # TestAgent example
 │   │   ├── auth/
-│   │   │   ├── __init__.py          # AuthService — JWT token management
-│   │   │   ├── auths.py             # HTTPBearer scheme
-│   │   │   └── dependencies.py      # validate_user FastAPI dependency
+│   │   │   ├── __init__.py               # AuthService — JWT token management
+│   │   │   ├── auths.py                  # HTTPBearer scheme
+│   │   │   └── dependencies.py           # validate_user FastAPI dependency
+│   │   ├── background_tasks/
+│   │   │   ├── __init__.py               # AbstractBackgroundTaskService, RegisteredTask
+│   │   │   └── in_memory.py              # InMemoryBackgroundTaskService
 │   │   ├── blob/
-│   │   │   ├── __init__.py          # AbstractBlobService
-│   │   │   ├── azure_blob.py        # AzureBlobService implementation
-│   │   │   └── memory.py            # InMemoryBlobService (for testing)
+│   │   │   ├── __init__.py               # AbstractBlobService
+│   │   │   ├── azure_blob.py             # AzureBlobService implementation
+│   │   │   └── memory.py                 # InMemoryBlobService (for testing)
 │   │   ├── cache/
-│   │   │   ├── __init__.py          # AbstractCacheService
-│   │   │   ├── memory.py            # InMemoryCacheService (for testing)
-│   │   │   └── redis.py             # RedisCacheService implementation
+│   │   │   ├── __init__.py               # AbstractCacheService
+│   │   │   ├── memory.py                 # InMemoryCacheService (for testing)
+│   │   │   └── redis.py                  # RedisCacheService implementation
+│   │   ├── chat_history/
+│   │   │   └── __init__.py               # ChatHistoryService (KeyedSingleton)
 │   │   ├── common/
 │   │   │   └── meta/
-│   │   │       └── __init__.py      # Metaclass DI system
+│   │   │       └── __init__.py           # Metaclass DI system
 │   │   ├── configuration/
 │   │   │   ├── __init__.py
-│   │   │   ├── keyvault_config.py   # KeyvaultConfig (reads from Key Vault)
-│   │   │   ├── keyvault_config_loader.py  # Loads secrets at startup, pub/sub reload
-│   │   │   └── local_config.py      # LocalConfig (reads from config.{environment}.ini)
+│   │   │   ├── keyvault_config.py        # KeyvaultConfig (reads from Key Vault)
+│   │   │   ├── keyvault_config_loader.py # Loads secrets at startup, pub/sub reload
+│   │   │   └── local_config.py           # LocalConfig (reads config.{env}.ini + .env for secrets)
+│   │   ├── execution_context/
+│   │   │   └── __init__.py               # ExecutionContext (Stored — per-request scope)
 │   │   ├── http/
-│   │   │   └── __init__.py          # HttpRequestService (httpx + requests)
+│   │   │   └── __init__.py               # HttpRequestService (httpx + requests)
 │   │   ├── keyvault/
-│   │   │   ├── __init__.py          # AbstractKeyVaultService
-│   │   │   └── azure_keyvault.py    # AzureKeyVaultService implementation
+│   │   │   ├── __init__.py
+│   │   │   └── azure_keyvault.py         # AzureKeyVaultService (concrete singleton)
 │   │   ├── llm/
-│   │   │   ├── __init__.py          # AbstractLLMService
-│   │   │   └── openai.py            # OpenAIService (OpenAI + Azure OpenAI)
+│   │   │   ├── __init__.py               # OpenAIService, OpenAIMessageAdapter re-exports
+│   │   │   ├── openai.py                 # OpenAIService (Chat Completions + Responses, debug capture)
+│   │   │   ├── openai_adapter.py         # OpenAIMessageAdapter (StoredMessage/RenderedPrompt → OpenAI)
+│   │   │   └── error_handler/
+│   │   │       ├── __init__.py
+│   │   │       └── openai.py             # OpenAIErrorHandler (retry + classify + content filter)
 │   │   ├── logging/
-│   │   │   ├── __init__.py          # AbstractLoggerService
-│   │   │   ├── config.py            # Colored logging config
-│   │   │   ├── console.py           # ConsoleLoggerService implementation
+│   │   │   ├── __init__.py               # LogMessage type alias
+│   │   │   ├── config.py                 # Colored logging config
+│   │   │   ├── console.py                # ConsoleLoggerService (concrete singleton)
 │   │   │   ├── helper/
-│   │   │   │   └── log_builder.py   # Log formatting helper
+│   │   │   │   └── log_builder.py        # Log formatting helper
 │   │   │   └── tee_stream/
-│   │   │       └── __init__.py      # TeeStream + TerminalCaptureService
+│   │   │       └── __init__.py           # TeeStream + TerminalCaptureService
 │   │   ├── nosql/
-│   │   │   ├── __init__.py          # AbstractNoSQLService
-│   │   │   └── mongodb.py           # MongoDBService implementation
+│   │   │   ├── __init__.py               # AbstractNoSQLService (SDK-agnostic)
+│   │   │   ├── cosmosdb.py               # CosmosDBService implementation
+│   │   │   └── mongodb.py                # MongoDBService (+ Atlas Search vector index helpers)
+│   │   ├── prompt/
+│   │   │   ├── __init__.py
+│   │   │   ├── decorator.py              # @register_prompt decorator
+│   │   │   ├── loader.py                 # PromptLoader (singleton, pub/sub reload)
+│   │   │   ├── service.py                # PromptService — get/format/render
+│   │   │   └── templates/                # Prompt template definitions
 │   │   ├── sql/
-│   │   │   ├── __init__.py          # AbstractSQLService (query, paginate, upsert)
-│   │   │   ├── mysql.py             # MySQLService implementation
-│   │   │   ├── postgresql.py        # PostgreSQLService implementation
-│   │   │   └── sqlite.py            # SQLiteService implementation
+│   │   │   ├── __init__.py               # AbstractSQLService (query, paginate, upsert, transactions)
+│   │   │   └── service.py                # SQLService (unified, driven by SQLBackend enum)
 │   │   ├── store/
-│   │   │   ├── __init__.py          # AbstractStore (generic repository)
-│   │   │   └── user.py              # UserStore implementation
+│   │   │   ├── __init__.py               # AbstractStore + AbstractSequenceStore
+│   │   │   ├── chat_history/
+│   │   │   │   ├── __init__.py           # ChatHistoryStore marker
+│   │   │   │   ├── memory.py             # InMemoryChatHistoryStore (for tests)
+│   │   │   │   └── sql.py                # SqlChatHistoryStore
+│   │   │   ├── conversation.py           # ConversationStore (with *_for_user variants)
+│   │   │   └── user.py                   # UserStore implementation
 │   │   ├── text_embedding/
-│   │   │   ├── __init__.py          # AbstractTextEmbeddingService
-│   │   │   └── openai.py            # OpenAITextEmbeddingService (OpenAI + Azure OpenAI)
+│   │   │   ├── __init__.py
+│   │   │   └── openai.py                 # OpenAITextEmbeddingService (concrete keyed singleton)
 │   │   └── vector_search/
-│   │       ├── __init__.py          # AbstractVectorSearchService
-│   │       ├── azure_ai_search.py   # AzureAISearchService implementation
-│   │       └── qdrant.py            # QdrantService implementation
+│   │       ├── __init__.py               # AbstractVectorSearchService
+│   │       ├── azure_ai_search.py        # AzureAISearchService implementation
+│   │       ├── mongodb.py                # MongoDBVectorSearchService (Atlas $vectorSearch)
+│   │       └── qdrant.py                 # QdrantService implementation
 │   │
-│   └── tools/                       # Utility modules
+│   └── tools/                            # Utility modules
 │       ├── __init__.py
-│       ├── database.py              # SQLResultFormats (query result processors)
-│       ├── deserializers.py         # JSON deserialization helpers
-│       ├── errors.py                # ErrorsException, raise_error
-│       ├── locale.py                # Localization utilities
-│       ├── misc.py                  # JSON serialization, general helpers
-│       ├── routers.py               # Auto-discovery router registration
-│       ├── security.py              # PasswordHashingService (Argon2), hash_args
-│       ├── serializers.py           # ExpansiveEncoder, serialize()
-│       ├── stream.py                # StreamIterator (SSE support)
-│       ├── validators.py            # Password validation
-│       └── webserver.py             # Uvicorn/Gunicorn launcher
+│       ├── database.py                   # SQLResultFormats (query result processors)
+│       ├── deserializers.py              # JSON deserialization helpers
+│       ├── errors.py                     # ErrorsException, raise_error
+│       ├── exception_handlers.py         # AppExceptionHandler (FastAPI error mapping)
+│       ├── hashing.py                    # hash_args (deterministic SHA-256 over arbitrary args)
+│       ├── locale.py                     # get_text_locale (EN/AR detection)
+│       ├── misc.py                       # JSON serialization, general helpers
+│       ├── prompt.py                     # extract_template_variables, safe_format
+│       ├── routers.py                    # Auto-discovery router registration
+│       ├── security.py                   # PasswordHashingService (Argon2)
+│       ├── serializers.py                # ExpansiveEncoder, serialize()
+│       ├── stream.py                     # StreamIterator (SSE support)
+│       ├── tokenizer.py                  # TokenCounter (tiktoken-backed, KeyedSingleton)
+│       ├── validators.py                 # Password validation
+│       └── webserver.py                  # Uvicorn/Gunicorn launcher
 │
 ├── database/
-│   └── poc-skeleton.db              # SQLite database file
+│   └── poc-skeleton.db                   # SQLite database file
 ├── keys/
-│   ├── private.pem                  # RSA private key (JWT signing)
-│   └── public.pem                   # RSA public key (JWT verification)
+│   ├── private.pem                       # RSA private key (JWT signing)
+│   └── public.pem                        # RSA public key (JWT verification)
 │
-├── config.local.ini                 # Local environment configuration
-├── config.dev.ini                   # Dev environment configuration
-├── config.uat.ini                   # UAT environment configuration
-├── config.staging.ini               # Staging environment configuration
-├── config.prod.ini                  # Production environment configuration
-├── config.keyvault.ini              # Key Vault tag prefixes
-├── pyproject.toml                   # Poetry project & dependencies
-└── .pre-commit-config.yaml          # Pre-commit hooks
+├── alembic/                              # Alembic migrations
+│   ├── env.py                            # Migration environment (LocalConfig-driven)
+│   ├── script.py.mako                    # Migration file template
+│   └── versions/                         # Migration scripts
+│
+├── alembic.ini                           # Alembic configuration
+├── config/
+│   ├── config.local.ini                  # Local environment configuration
+│   ├── config.dev.ini                    # Dev environment configuration
+│   ├── config.uat.ini                    # UAT environment configuration
+│   ├── config.staging.ini                # Staging environment configuration
+│   ├── config.prod.ini                   # Production environment configuration
+│   └── config.keyvault.ini               # Key Vault tag prefixes
+├── .env                                  # Local secrets (gitignored, loaded via dotenv)
+├── GETTING_STARTED.md                    # Friendly intro: what it is + how to run + try it
+├── pyproject.toml                        # Poetry project & dependencies
+└── .pre-commit-config.yaml               # Pre-commit hooks
 ```
 
 ---
@@ -241,23 +338,25 @@ Config (LocalConfig / KeyvaultConfig)
 - Routes contain zero business logic — they delegate to services
 - All services use metaclass-based DI (no manual wiring, no DI container)
 - Every database client provides both sync and async interfaces
-- Abstract base classes define contracts; concrete implementations are swappable
-- Configuration is split into per-environment files (`config.{environment}.ini`) and Key Vault (`config.keyvault.ini`)
+- Abstract base classes define contracts only where multiple backends exist; single-implementation services are concrete
+- Configuration is split into per-environment files (`config.{environment}.ini`) with secrets resolved from environment variables (`.env` locally, deployment env vars in Docker). Key Vault (`config.keyvault.ini`) is available for Azure deployments
 
 ---
 
 ## Configuration
 
-### config.{environment}.ini
+### config/config.{environment}.ini
 
-Each environment has its own configuration file: `config.local.ini`, `config.dev.ini`, `config.uat.ini`, `config.staging.ini`, `config.prod.ini`. The active file is determined by the `ENVIRONMENT` env var (defaults to `local`), which loads `config.{ENVIRONMENT}.ini`.
+Each environment has its own configuration file under `config/`: `config.local.ini`, `config.dev.ini`, `config.uat.ini`, `config.staging.ini`, `config.prod.ini`. The active file is determined by the `ENVIRONMENT` env var (defaults to `local`), which loads `config/config.{ENVIRONMENT}.ini`.
+
+Secrets are **not** stored in config files. Instead, config keys use the `ENV:` prefix to resolve values from environment variables at runtime:
+```ini
+pg_password = ENV:POSTGRES_PASSWORD
+```
+
+For local development, `LocalConfig` automatically loads a `.env` file (via `python-dotenv`) from the backend root directory. For Docker/deployment, secrets are provided as deployment environment variables directly.
 
 Each file contains a single INI section matching the environment name (e.g., `[local]` in `config.local.ini`, `[prod]` in `config.prod.ini`). `LocalConfig` validates that the expected section exists at load time.
-
-Supports `ENV:` prefix to resolve values from environment variables:
-```ini
-pg_password = ENV:DATABASE_PASSWORD
-```
 
 **Keys (section name matches the environment):**
 
@@ -268,16 +367,19 @@ pg_password = ENV:DATABASE_PASSWORD
 | | `auth_public_key_path` | `AuthService` | Path to RSA public key for JWT verification |
 | | `access_token_expiry_seconds` | `AuthService` | Access token TTL (default: 900) |
 | | `refresh_token_expiry_seconds` | `AuthService` | Refresh token TTL (default: 604800) |
-| | `sqlite_db_path` | `SQLiteClient` | Path to SQLite database file |
-| | `db_pool_size` | `MySQL/PostgreSQL` | Connection pool size |
-| | `db_max_overflow` | `MySQL/PostgreSQL` | Max overflow connections |
-| | `db_pool_timeout` | `MySQL/PostgreSQL` | Pool timeout in seconds |
-| | `db_pool_recycle` | `MySQL/PostgreSQL` | Connection recycle time |
-| | `db_ssl_enabled` | `MySQL/PostgreSQL` | Enable SSL for DB connections |
-| | `pg_*` | `PostgreSQLClient` | PostgreSQL connection settings |
-| | `mysql_*` | `MySQLClient` | MySQL connection settings |
+| | `sql_backend` | `SQLClient`, `SQLService`, `Alembic` | Active SQL backend: `sqlite`, `mysql`, or `postgresql` |
+| | `sqlite_db_path` | `SQLClient` | Path to SQLite database file |
+| | `db_pool_size` | `SQLClient` (MySQL/PostgreSQL) | Connection pool size |
+| | `db_max_overflow` | `SQLClient` (MySQL/PostgreSQL) | Max overflow connections |
+| | `db_pool_timeout` | `SQLClient` (MySQL/PostgreSQL) | Pool timeout in seconds |
+| | `db_pool_recycle` | `SQLClient` (MySQL/PostgreSQL) | Connection recycle time |
+| | `db_ssl_enabled` | `SQLClient` (MySQL/PostgreSQL) | Enable SSL for DB connections |
+| | `pg_*` | `SQLClient` (PostgreSQL) | PostgreSQL connection settings |
+| | `mysql_*` | `SQLClient` (MySQL) | MySQL connection settings |
 | | `redis_*` | `RedisClient` | Redis connection settings |
 | | `mongodb_*` | `MongoDBClient` | MongoDB connection settings |
+| | `azure_cosmos_account_uri` | `CosmosDBClient` | Azure Cosmos DB account URI |
+| | `azure_cosmos_account_key` | `CosmosDBClient` | Azure Cosmos DB account key (optional if using AAD) |
 | | `azure_blob_account_url` | `AzureBlobClient` | Azure Blob Storage account URL |
 | | `keyvault_url` | `AzureKeyVaultService` | Azure Key Vault URL |
 | | `system_keyvault_tag` | `AzureKeyVaultService` | System/app secret name prefix |
@@ -287,7 +389,7 @@ pg_password = ENV:DATABASE_PASSWORD
 | | `qdrant_*` | `QdrantClient` | Qdrant vector DB config |
 | | `azure_search_*` | `AzureAISearchClient/Service` | Azure AI Search config |
 
-### config.keyvault.ini
+### config/config.keyvault.ini
 
 Static config for the Key Vault secret loading system. Read by `KeyvaultConfigLoader`.
 
@@ -306,7 +408,6 @@ KeyvaultConfig.get("some_secret_key")
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENVIRONMENT` | `local` | Selects `config.{ENVIRONMENT}.ini` and its matching section |
-| `BUILD_VERSION` | `0.0.1` | Application build version |
 | `API_HOST` | `0.0.0.0` | Webserver bind host |
 | `API_PORT` | `8000` | Webserver bind port |
 
@@ -337,7 +438,7 @@ Located in `base/services/common/meta/__init__.py`. All DI is handled through Py
 
 ```python
 # Singleton service — always returns same instance
-class AuthService(AbstractService, metaclass=SingletonABC):
+class AuthService(metaclass=Singleton):
     ...
 
 auth = AuthService()  # Always the same instance
@@ -350,7 +451,7 @@ capture = TerminalCaptureService(_key="MyApp")
 
 # Keyed singleton with auto-derived key — same args = same instance
 # Key is generated by serializing args via ExpansiveEncoder + SHA-256 hash
-class OpenAIService(AbstractLLMService, metaclass=KeyedSingletonABC):
+class OpenAIService(metaclass=KeyedSingleton):
     def __init__(self, config: ModelConfigurations) -> None: ...
 
 svc_a = OpenAIService(config=gpt4_config)   # Creates new instance
@@ -389,23 +490,28 @@ purge_all()             # Clear everything
 
 Provides a complete SQL toolkit: `query`, `aquery`, `execute`, `aexecute`, `paginate`, `apaginate`, `upsert_row`, `aupsert_row`, `upsert_rows`, `aupsert_rows`, `health_check`, `ahealth_check`, and bulk operations.
 
+**Unified implementation:** A single `SQLClient` (`base/clients/sql/client.py`) and `SQLService` (`base/services/sql/service.py`) handle all three backends, driven by the `SQLBackend` enum. The active backend is resolved from the `sql_backend` key in `config.{env}.ini`.
+
+| Backend | Sync Driver | Async Driver | Config Keys |
+|---------|-------------|--------------|-------------|
+| `sqlite` | `pysqlite` | `aiosqlite` | `sqlite_db_path` |
+| `mysql` | `pymysql` | `aiomysql` | `mysql_*`, `db_*` |
+| `postgresql` | `psycopg2` | `asyncpg` | `pg_*`, `db_*` |
+
+`SQLClient` uses `KeyedSingleton` (keyed by backend type) and manages both sync and async SQLAlchemy engines with session factories, connection pooling, and SSL support. `SQLService` resolves the backend from config automatically — callers just use `SQLService()`. Schema is managed via Alembic migrations — run `alembic upgrade head` to apply.
+
+### NoSQL (MongoDB, CosmosDB)
+
+**Abstract base:** `AbstractNoSQLService` in `base/services/nosql/__init__.py` — SDK-agnostic abstract class with full CRUD, aggregation, pagination, count, distinct, and health check operations. All methods have sync and async variants.
+
 **Implementations:**
 
 | Service | Client | Driver | Config Keys |
 |---------|--------|--------|-------------|
-| `SQLiteService` | `SQLiteClient` | `aiosqlite` | `sqlite_db_path` |
-| `MySQLService` | `MySQLClient` | `aiomysql` / `pymysql` | `mysql_*`, `db_*` |
-| `PostgreSQLService` | `PostgreSQLClient` | `asyncpg` / `psycopg2` | `pg_*`, `db_*` |
+| `MongoDBService` | `MongoDBClient` | PyMongo (sync + async) | `mongodb_*` |
+| `CosmosDBService` | `CosmosDBClient` | Azure Cosmos DB SDK (SQL API) | `cosmosdb_*` |
 
-All clients manage both sync and async SQLAlchemy engines with session factories. Features include connection pooling, SSL support, and auto-table creation.
-
-### NoSQL (MongoDB)
-
-**Abstract base:** `AbstractNoSQLService` in `base/services/nosql/__init__.py`
-
-**Implementation:** `MongoDBService` with `MongoDBClient` using Motor (async) and PyMongo (sync).
-
-Config keys: `mongodb_*` (host, username, password, database, pool sizes, timeouts, params).
+Operations: `find_one`, `find_many`, `insert_one`, `insert_many`, `update_one`, `update_many`, `replace_one`, `delete_one`, `delete_many`, `count`, `distinct`, `aggregate`, `paginate`, `health_check`. All with sync + async variants.
 
 ### Redis Cache
 
@@ -442,11 +548,9 @@ Config keys: `azure_blob_account_url`
 
 ### Key Vault
 
-**Abstract base:** `AbstractKeyVaultService` in `base/services/keyvault/__init__.py`
+`AzureKeyVaultService` (`base/services/keyvault/azure_keyvault.py`) — concrete singleton that manages secrets in Azure Key Vault with sync and async clients, secret name formatting with tag prefixes, and `DefaultAzureCredential` authentication.
 
-**Implementation:** `AzureKeyVaultService` — manages secrets in Azure Key Vault with sync and async clients, secret name formatting with tag prefixes, and `DefaultAzureCredential` authentication.
-
-The `KeyvaultConfigLoader` loads tagged secrets at startup and listens for Redis pub/sub reload events for distributed config refresh.
+The `KeyvaultConfigLoader` loads tagged secrets at startup and listens for pub/sub reload events for distributed config refresh. Uses `InMemoryCacheService` by default (no Redis required); switch to `RedisCacheService` when a Redis instance is available.
 
 Config keys: `keyvault_url`, `system_keyvault_tag`, `model_keyvault_tag`
 
@@ -456,20 +560,21 @@ Config keys: `keyvault_url`, `system_keyvault_tag`, `model_keyvault_tag`
 
 **Implementations:**
 
-| Service | Client | Config Keys |
-|---------|--------|-------------|
+| Service | Client / Backend | Config Keys |
+|---------|------------------|-------------|
 | `QdrantService` | `QdrantClient` | `qdrant_*` |
 | `AzureAISearchService` | `AzureAISearchClient` | `azure_search_*` |
+| `MongoDBVectorSearchService` | `MongoDBClient` (Atlas Search `$vectorSearch`) | `mongodb_*` |
 
-Operations: `search`, `upsert`, `delete`, `create_collection`, `delete_collection`, `health_check`. All sync + async.
+Operations: `search`, `upsert`, `delete`, `get`, `scroll`, `count`, `create_collection`, `delete_collection`, `collection_exists`, `health_check`. All sync + async.
+
+**Atlas Search index management:** `MongoDBService` exposes `create_collection_vector_index()` and `acreate_collection_vector_index()` — idempotent helpers that create or update an Atlas Search vector index for a collection, falling back to drop + recreate (with poll-until-propagated) when an in-place update isn't compatible. Vector size is read from `azure_openai_embedding_dimensions` in config.
 
 ### Text Embeddings
 
-**Abstract base:** `AbstractTextEmbeddingService` in `base/services/text_embedding/__init__.py`
+`OpenAITextEmbeddingService` (`base/services/text_embedding/openai.py`) — concrete keyed singleton that works with any OpenAI-compatible embedding API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.)
 
-**Implementation:** `OpenAITextEmbeddingService` (metaclass: `KeyedSingletonABC`) — works with any OpenAI-compatible embedding API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.)
-
-Uses `KeyedSingletonABC` with auto-derived keys: passing the same `EmbeddingConfigurations` returns the cached instance, while a different config creates a new one.
+Uses `KeyedSingleton` with auto-derived keys: passing the same `EmbeddingConfigurations` returns the cached instance, while a different config creates a new one.
 
 Features:
 - Sync (`embed_query`, `embed_documents`) and async (`aembed_query`, `aembed_documents`) variants
@@ -481,20 +586,224 @@ Configuration is passed via `EmbeddingConfigurations` Pydantic model (not from c
 
 ### LLM (OpenAI)
 
-**Abstract base:** `AbstractLLMService` in `base/services/llm/__init__.py`
+`OpenAIService` (`base/services/llm/openai.py`) — concrete keyed singleton that works with any OpenAI-compatible API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.).
 
-**Implementation:** `OpenAIService` (metaclass: `KeyedSingletonABC`) — works with any OpenAI-compatible API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.)
+Uses `KeyedSingleton` with auto-derived keys: passing the same `ModelConfigurations` returns the cached instance, while a different config creates a new one. This means one client + connection pool per unique model configuration, with no manual key management required.
 
-Uses `KeyedSingletonABC` with auto-derived keys: passing the same `ModelConfigurations` returns the cached instance, while a different config creates a new one. This means one client + connection pool per unique model configuration, with no manual key management required.
+#### API Surfaces
 
-Features:
-- Sync (`generate`) and async (`agenerate`) chat completions
-- Streaming with `StreamIterator` integration
-- Automatic retry with backoff on rate limits and timeouts
-- HTTP/2 connection pooling via `httpx`
-- Azure OpenAI and standard OpenAI client support
+The service supports both OpenAI API surfaces side-by-side, sync and async, streaming and non-streaming:
 
-Configuration is passed via `ModelConfigurations` Pydantic model (not from config.ini — designed to support dynamic model configs from Key Vault or database).
+| Method | Surface | Returns |
+|--------|---------|---------|
+| `completions` / `acompletions` | Chat Completions | `CompletionResult` |
+| `responses` / `aresponses` | Responses API | `ResponseResult` |
+| `parse_completions` / `aparse_completions` | Chat Completions (structured) | `ParsedCompletionResult[T]` |
+| `parse_responses` / `aparse_responses` | Responses (structured) | `ParsedResponseResult[T]` |
+
+`CompletionResult` and `ResponseResult` expose `.content` (the assistant text) and `.tool_calls` (a normalized `list[StoredToolCall]`) so callers don't have to dig through provider-specific shapes.
+
+#### Streaming
+
+Pass a `StreamIterator` as `stream_iterator=...` to any of the four streaming-capable methods. The service emits `StreamStart`, then `StreamMessage` per delta, then `StreamEnd`, and surfaces `StreamError` on failure (with `error_code`, exception type, and reason).
+
+#### Auto Debug Capture
+
+Every public LLM call records a `DebugCall` (prompt, response content, token counts, duration, error) into the current request's `ExecutionContext.debug_trace` automatically. Callers can pass `label="MyAgent"` or `label="MyAgent:item_id"` so the captured call carries a meaningful identifier for fan-out scenarios. See [Debug Trace](#debug-trace).
+
+#### Error Handling — Domain Hierarchy
+
+Callers never see raw OpenAI SDK exceptions. Everything is wrapped into the `LLMError` hierarchy in `base/models/view_models/llm_exception.py`:
+
+| Class | When |
+|-------|------|
+| `LLMConfigError` | Missing or invalid configuration (e.g. no `model_name`, no `api_host` for Azure) |
+| `LLMBadRequestError` | 400 / 422 |
+| `LLMAuthError` | 401 / 403 |
+| `LLMNotFoundError` | 404 |
+| `LLMConflictError` | 409 |
+| `LLMRateLimitError` | 429 after retries exhausted |
+| `LLMServerError` | 5xx after retries exhausted |
+| `LLMTimeoutError` | Network/API timeout after retries exhausted |
+| `LLMConnectionError` | Network connection failure after retries exhausted |
+| `LLMContentFilterError` | Pre-flight 400 with `code=="content_filter"` (Azure) or non-streaming response with `incomplete_details.reason=="content_filter"` |
+| `LLMIncompleteError` | Response incomplete for any other reason (e.g. `max_tokens`) |
+| `LLMStreamError` | Mid-stream failure; `partial_content` may be present |
+| `LLMUnexpectedError` | Unanticipated SDK error; check `.provider_error` |
+
+Retry-exhausted variants (`LLMRateLimitError`, `LLMServerError`, `LLMTimeoutError`, `LLMConnectionError`) inherit from `LLMRetryExhausted` and carry an `attempts` count.
+
+#### OpenAIErrorHandler
+
+`base/services/llm/error_handler/openai.py` centralizes classification, retry policy, and domain wrapping behind `.run()` / `.arun()`. Behaviour:
+
+- **Classification:** walks the SDK exception MRO against a table; unknown errors map to `LLMUnexpectedError`. Bad-request errors carrying a `content_filter` code are routed to `LLMContentFilterError`.
+- **Retry:** retryable errors (rate limit, 5xx, timeout, connection) get retried up to `retries + 1` attempts.
+- **Backoff:** `Retry-After` header on 429 takes precedence; otherwise jittered exponential backoff up to `max_wait`.
+- **Final wrap:** retry-exhausted errors are wrapped into the matching `LLMRetryExhausted` subclass with status code, request id, and original provider error preserved.
+
+Per-service tuning is via `ModelConfigurations.api_retries` and `wait_time`.
+
+#### OpenAIMessageAdapter
+
+`base/services/llm/openai_adapter.py` translates the codebase's canonical message types into the shape each API surface needs:
+
+- `to_chat_completions_messages(messages=..., prompt=...)` → `list[ChatCompletionMessageParam]`
+- `to_responses_input(messages=..., prompt=...)` → `ResponseInputParam`
+
+Accepts `list[StoredMessage]` from `ChatHistoryService`, a `RenderedPrompt` from `PromptService`, or both. Handles instructions (system / developer), assistant tool calls, and tool-result messages (mapping to `function_call_output` for the Responses API).
+
+**Typical agent pattern.** When the prompt template splices history via a `MessagesPlaceholder`, you pass `prompt=` only — the rendered prompt already contains the prior conversation in the right slot:
+
+```python
+rendered = self._prompt_service.render(
+    self.PROMPT_KEY,
+    history=await self._aget_history(),
+    user_query=ctx.flow_variables.user_query,
+)
+responses_input = OpenAIMessageAdapter.to_responses_input(prompt=rendered)
+```
+
+Use the `messages=` argument when you need to append history *after* the prompt's structured messages (e.g. one-shot calls without a chat-aware template), or when you have stored messages but no `RenderedPrompt`.
+
+#### Configuration
+
+Configuration is passed via `ModelConfigurations` (Pydantic), not from `config.ini` — designed to support dynamic model configs from Key Vault or database. HTTP/2 connection pooling via `httpx`.
+
+### Prompt Management
+
+`PromptService` (`base/services/prompt/service.py`) — concrete singleton backed by `PromptLoader`.
+
+A system for managing LLM prompt templates with decorator-based registration, versioning via database, and distributed hot-reload via Redis pub/sub. The skeleton ships its own `PromptTemplate` (no LangChain dependency); it accepts both `str.format`-style string templates and structured message lists, validates declared vs detected variables at construction time, and supports `partial_variables`.
+
+**Components:**
+- `PromptLoader` — singleton that holds all registered prompts in memory. Auto-discovers and imports all modules under `base/services/prompt/templates/` at startup so `@register_prompt` decorators fire automatically. Uses `InMemoryCacheService` by default (no Redis required); switch to `RedisCacheService` when a Redis instance is available. Subscribes to `PROMPT_RELOAD` pub/sub events for distributed reload from the database.
+- `PromptService` — service layer exposing `get()`, `get_raw()`, `format()`, `render()`, and `list_keys()`. `render()` returns a fully-rendered `RenderedPrompt` (instructions + messages, ready to be adapted via `OpenAIMessageAdapter`).
+- `@register_prompt` decorator — registers a `Prompt` at import time into the `PromptLoader`.
+- `PromptDTO` / `ActivePromptDTO` — ORM models for versioned prompt storage with active-prompt tracking.
+
+**Message templates:**
+
+| Class | Role / Behaviour |
+|-------|------------------|
+| `SystemMessageTemplate` | `system` instruction |
+| `DeveloperMessageTemplate` | `developer` instruction |
+| `UserMessageTemplate` | `user` message |
+| `AssistantMessageTemplate` | `assistant` message |
+| `ToolMessageTemplate` | `tool` message (carries `tool_call_id`) |
+| `MessagesPlaceholder` | Slot that fans out into a variable-length list of conversation messages at render time |
+
+**`MessagesPlaceholder`** mirrors LangChain's placeholder of the same name: it reserves a position in a message-based template that gets expanded at render time into the list of messages stored under `variable_name` in the render kwargs. The expected shape under that key is a list of items each carrying `role` + `content` (and optionally `tool_call_id` for tool messages); `StoredMessage` objects work as-is and plain dicts are accepted too. Defaults to `optional=True` (missing / `None` → empty list); `system` / `developer` roles inside the placeholder are rejected because chat history is conversation, not instructions.
+
+This is the canonical way to weave prior turns into a prompt: the system instructions, the placeholder, and the structured user message live in one typed template, and the agent just passes `history=` and `user_query=` into `render()`.
+
+**Subclasser note.** Items implement `to_rendered_prompt_items(variables) -> list[RenderedPromptItem]` (plural). Most items return a single-element list; `MessagesPlaceholder` returns one entry per spliced message.
+
+**Startup:** `PromptLoader().initialize()` is called during the FastAPI lifespan. It auto-imports all modules under `base/services/prompt/templates/`, triggering `@register_prompt` decorators, and optionally loads overrides from the database.
+
+**Usage:**
+```python
+from base.models.view_models.prompt import (
+    MessagesPlaceholder,
+    Prompt,
+    PromptTemplate,
+    SystemMessageTemplate,
+    UserMessageTemplate,
+)
+from base.services.prompt.decorator import register_prompt
+from base.services.prompt.service import PromptService
+
+
+@register_prompt
+def my_prompt() -> Prompt:
+    return Prompt(
+        key="my_prompt",
+        name="My Prompt",
+        description="Answer a user question with prior turns in context.",
+        template=PromptTemplate.from_messages([
+            SystemMessageTemplate(content="You are a helpful assistant."),
+            MessagesPlaceholder(variable_name="history"),
+            UserMessageTemplate(content="{user_query}"),
+        ]),
+    )
+
+
+rendered = PromptService().render(
+    "my_prompt",
+    history=stored_messages,  # list[StoredMessage] from ChatHistoryService
+    user_query="Hello!",
+)
+```
+
+The resulting `RenderedPrompt` exposes `instructions` (system / developer blocks) and `messages` (user / assistant / tool turns, including the placeholder-expanded history). Pass it through `OpenAIMessageAdapter.to_responses_input(prompt=rendered)` (or the chat-completions equivalent) to assemble the final LLM input — no separate `messages=` argument needed when the template already splices history via a placeholder.
+
+### Chat History
+
+`ChatHistoryService` (`base/services/chat_history/__init__.py`) — `KeyedSingleton` keyed on `ChatHistoryConfig`. Owns canonical conversation message persistence on top of an `AbstractSequenceStore[ConversationId, StoredMessage]` backend, plus visibility filtering, tool-pair repair, and per-message token counting.
+
+**Highlights:**
+- **Per-conversation locking.** Sync (`threading.Lock`) and async (`asyncio.Lock`) lock maps serialize `next_sequence + append` per conversation so sequence assignment never races the SQL unique constraint. Sync and async paths are independent — pick one per conversation.
+- **Token counting** via `TokenCounter` (tiktoken). Counted at append time and stored on the message; `tokenizer_model` comes from `ChatHistoryConfig`.
+- **Visibility filter.** Messages with `metadata["is_policy_violated"] == True` are dropped from `get_messages` / `aget_messages` so they never re-enter an LLM prompt.
+- **Tool-pair repair.** On fetch, ensures the LLM tool-call contract holds: orphan `tool` messages are dropped, and assistant turns whose tool calls don't all have matching tool results get demoted to plain assistant messages (tool calls stripped). Keeps the conversation submittable to OpenAI without bookkeeping at the call site.
+
+**Public API:**
+
+| Operation | Sync | Async |
+|-----------|------|-------|
+| Append a single message | `append_message` | `aappend_message` |
+| Get messages (filtered + repaired) | `get_messages` | `aget_messages` |
+| Clear all messages for a conversation | `clear` | `aclear` |
+
+**Backing stores** live under `base/services/store/chat_history/`:
+- `ChatHistoryStore` — marker subclass of `AbstractSequenceStore[ConversationId, StoredMessage]`. Service depends on this type, not on the abstract directly.
+- `SqlChatHistoryStore` — SQLAlchemy-backed; one row per message in `chat_history_message`. Uses the `(conversation_id, sequence)` unique constraint as the correctness primitive.
+- `InMemoryChatHistoryStore` — single-process reference impl for tests / PoC dev. IDs are not auto-assigned.
+
+`StoredMessage` is the canonical, backend-neutral shape. SQL and Mongo (when implemented) round-trip through it; persistence timestamps stay on the DTO.
+
+### Conversations
+
+The conversations layer pairs a `ConversationStore` with a router and a chat-history store to provide a fully-wired chat surface:
+
+- **`ConversationStore`** (`base/services/store/conversation.py`) — `AbstractStore[ConversationDTO]` with extra `*_for_user` variants (`aget_for_user`, `acreate_for_user`, `aedit_for_user`, `adelete_for_user`, …). Soft-deleting a conversation cascades a soft-delete to all its `ChatHistoryMessageDTO` rows in a single transaction.
+- **`ConversationDTO` / `ChatHistoryMessageDTO`** ORM models — see [ORM Models](#orm-models).
+- **Conversation router** (`base/routers/conversation.py`) — endpoints listed in [API Endpoints](#api-endpoints).
+
+The router is also a worked example of how to assemble the streaming chat flow: it stamps the per-request debug-trace baseline (`execution_context.start_debug_trace()`), constructs a `FlowVariables`, populates the `ExecutionContext`, hands the work to a `TestAgent` instance (any `AbstractAgent` subclass), persists user/assistant turns through `ChatHistoryService`, and (in streaming mode) spawns the run as a background coroutine so the SSE response can drain independently.
+
+### Background Tasks
+
+`AbstractBackgroundTaskService` (`base/services/background_tasks/__init__.py`) — distributed-safe API. Tasks must be registered by name and invoked with pickleable args; each `enqueue` produces a unique `TaskHandle`. The interface is intentionally backend-agnostic so an in-memory implementation today and Celery / arq tomorrow share callsites.
+
+**API:**
+
+| Concern | Methods |
+|---------|---------|
+| Registration | `register(name, func, replace=False)`, `task(name)` decorator → `RegisteredTask` |
+| Enqueue | `enqueue` / `aenqueue` |
+| Cancel | `cancel`, `acancel`, `cancel_by_name`, `acancel_by_name` |
+| Status / Result | `get_status` / `aget_status`, `get_result` / `aget_result(timeout=…)` |
+| Lifecycle | `ashutdown(timeout=5.0)` |
+
+`RegisteredTask[S]` is a typed reference returned by `register()` / `@task()`. It's directly callable (bypasses the queue) and exposes `enqueue` / `aenqueue` and `cancel_all` / `acancel_all` bound to the owning service.
+
+**`InMemoryBackgroundTaskService`** (`base/services/background_tasks/in_memory.py`) — asyncio-based, in-process; state is lost on restart. Adds an extra `spawn_coroutine(coro, *, name=None, task_id=None, metadata=None)` escape hatch that accepts raw coroutines (e.g. closures over request-scope vars like a `StreamIterator` SSE pump). The escape hatch is in-process only; not portable to distributed backends.
+
+**Usage:**
+```python
+from base.services.background_tasks.in_memory import InMemoryBackgroundTaskService
+
+service = InMemoryBackgroundTaskService()
+
+
+@service.task("send_welcome_email")
+async def send_welcome_email(user_id: str) -> None: ...
+
+
+handle = await send_welcome_email.aenqueue(user_id)
+await service.aget_result(handle, timeout=10.0)
+```
 
 ### HTTP Client
 
@@ -508,11 +817,134 @@ Features:
 
 ### Logging
 
-**Abstract base:** `AbstractLoggerService` in `base/services/logging/__init__.py`
-
-**Implementation:** `ConsoleLoggerService` — colored console logging with structured error formatting (code, category, location, tag).
+`ConsoleLoggerService` (`base/services/logging/console.py`) — concrete singleton for colored console logging with structured error formatting (code, category, location, tag).
 
 Logging config in `base/services/logging/config.py` uses `colorlog` for colored output.
+
+---
+
+## Agents (AbstractAgent)
+
+`AbstractAgent` (`base/services/agents/__init__.py`) — template-method base for every LLM agent in the chat flow. One `SingletonABC` instance per concrete subclass; per-request state lives on the lazily-resolved `ExecutionContext`.
+
+**Hooks** (all async, no arguments — agents read from / write to `self._execution_context.flow_variables`):
+
+| Hook | Required | Purpose |
+|------|----------|---------|
+| `_pre_execute()` | No | Optional setup |
+| `_execute()` | **Yes** | Main work; let `LLMError` propagate |
+| `_post_execute()` | No | Optional teardown; runs only on success |
+
+**Error mapping at `arun()`:** if `_execute()` raises an `LLMError`, `arun` looks up the matching `CannedMessages` (locale-aware via `flow_variables.locale`), sends it inline as a `StreamMessage` + `StreamEnd` when the request is streaming, and re-raises as `FlowAbortError(canned_message, cause=exc)` for the pipeline to catch. The pipeline / router converts that into the user-facing response — the request still completes normally from the client's point of view.
+
+**Constants** subclasses set:
+- `PROMPT_KEY: ClassVar[str]` — key into `PromptService` for the agent's system / developer prompt
+- `MAX_OUTPUT_TOKENS: ClassVar[int]` — per-agent cap
+
+**Injected services** (set up in `AbstractAgent.__init__`): `OpenAIService`, `PromptService`, `ChatHistoryService`, `ConsoleLoggerService`. Pass `label=type(self).__name__` (or `f"{type(self).__name__}:{item_id}"` for fanout) to the LLM calls so each captured `DebugCall` carries a meaningful identifier.
+
+**Built-in helpers:**
+- `await self._aget_history()` — returns the conversation's `list[StoredMessage]` minus the trailing `USER` message. The conversation router appends the current request's user message **before** the pipeline runs, so the latest stored `USER` is the current query; agent prompts already substitute that into their structured user message via `{user_query}`. Slicing it off here prevents duplicating the same text inline as a history entry. Pass the result as `history=` to `self._prompt_service.render(...)` and let a `MessagesPlaceholder` in the template splice it in. Returns `[]` when the context has no `conversation_id`.
+
+**Example** (see `base/services/agents/test.py`):
+```python
+from typing import ClassVar
+
+from base.services.agents import AbstractAgent
+from base.services.llm import OpenAIMessageAdapter
+
+
+class TestAgent(AbstractAgent):
+    PROMPT_KEY: ClassVar[str] = "test_prompt"
+    MAX_OUTPUT_TOKENS: ClassVar[int] = 500
+
+    async def _execute(self) -> None:
+        ctx = self._execution_context
+        rendered = self._prompt_service.render(
+            self.PROMPT_KEY,
+            history=await self._aget_history(),
+            user_query=ctx.flow_variables.user_query,
+        )
+        result = await self._llm_service.aresponses(
+            OpenAIMessageAdapter.to_responses_input(prompt=rendered),
+            label=type(self).__name__,
+            max_output_tokens=self.MAX_OUTPUT_TOKENS,
+            stream_iterator=ctx.stream_iterator if ctx.streaming else None,
+        )
+        ctx.flow_variables.final_answer = (result.content or "").strip()
+```
+
+The companion prompt template uses a `MessagesPlaceholder` to receive the spliced history — see [Prompt Management](#prompt-management).
+
+---
+
+## Execution Context
+
+`ExecutionContext` (`base/services/execution_context/__init__.py`) — per-request data container shared by every agent and service in the chat flow. Uses the `Stored` metaclass so each instance is bound to a request-scoped `scope_id` (set by the `register_request` middleware in [`base/main.py`](base/main.py)).
+
+**Fields:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `flow_variables` | `FlowVariables` | Single source of truth for one pipeline run (conversation id, user query, locale, final answer, your additions) |
+| `streaming` | `bool` | Whether the current request is an SSE stream |
+| `stream_iterator` | `StreamIterator \| None` | Per-request SSE pump (set by the router when `streaming=true`) |
+| `debug_trace` | `DebugTrace` | Per-request bundle of `DebugCall`s + `FlowEvent`s, auto-populated by `OpenAIService` |
+
+**Helpers:**
+- `set_flow_variable(key, value)` / `get_flow_variable(key, default=None)` / `get_flow_variables()`
+- `start_debug_trace()` — stamp `DebugTrace.started_at` (call once at the top of your pipeline so subsequent `record_event` calls have a baseline)
+- `record_event(stage, **detail) -> FlowEvent` — append a breadcrumb (`elapsed_ms` is computed from `started_at`)
+
+**Lifecycle.** The `register_request` middleware sets a fresh `scope_id` per HTTP request and calls `Stored.delete_scope()` after the response, except when the response is `text/event-stream` — SSE streams drain after the handler returns, so the scope persists for the duration of the stream.
+
+Access pattern: `AbstractAgent` and `OpenAIService` resolve the context lazily through a property (`return ExecutionContext()`) instead of caching it in `__init__`, because both classes are singletons but the context is per-request scoped. Storing it once would freeze the first request's context across every subsequent request.
+
+---
+
+## Debug Trace
+
+The debug trace is the per-request observability bundle on `ExecutionContext.debug_trace`. It's populated automatically — there's nothing to wire up beyond passing a meaningful `label=` to LLM calls.
+
+**Captured shapes** (`base/models/view_models/debug_trace.py`):
+
+- `DebugCall` — one LLM call: `agent`, `label` (e.g. `MyAgent` or `MyAgent:item_id`), `model`, `prompt`, `response`, `input_tokens`, `output_tokens`, `total_tokens`, `duration_ms`, `error`. `OpenAIService` writes one of these around every `completions` / `responses` / `parse_completions` / `parse_responses` call (and their async siblings) via a `try/finally`, so failed calls are recorded too.
+- `FlowEvent` — one pipeline-level breadcrumb: `elapsed_ms`, `stage`, `detail`. Use `ExecutionContext.record_event("identify_path", chosen=…)` to leave them.
+- `DebugTrace` — `started_at` + `calls` + `events`. Persisted to `chat_history_message.metadata["debug"]` when the conversation router writes the assistant turn (see [`base/routers/conversation.py`](base/routers/conversation.py)).
+
+A trace is only populated inside a pipeline run (`debug_trace.started_at != 0`). Outside of one (legacy endpoints, admin routes), `OpenAIService` still logs a one-liner per call but skips the trace appendage.
+
+---
+
+## Localization & Canned Messages
+
+The skeleton ships a small bilingual (English / Arabic) localization layer used by the agent error path.
+
+- **`Locale`** (`base/models/definitions/database.py`) — `EN`, `AR`, `OTHER`. Used as a dict key in `CannedMessages` values.
+- **`get_text_locale(text, fallback_text=None, default_fallback=None)`** (`base/tools/locale.py`) — counts Latin vs. Arabic-script glyphs to pick a `Locale` for the user's input. Falls back to `default_fallback` (or `Locale.EN`) when the text contains neither (numbers / punctuation only).
+- **`CannedMessages`** (`base/models/definitions/canned_messages.py`) — enum where each value is a `dict[Locale, str]`. Includes `ERROR_FALLBACK`, `LLM_GENERIC_ERROR`, `LLM_RATE_LIMITED`, `LLM_INCOMPLETE`, `LLM_STREAM_FAILED`, `JAILBREAK_ATTEMPT`, and per-category content-filter messages (hate, violence, sexual, self-harm).
+- **`CannedMessages.from_llm_error(exc)`** — maps an `LLMError` to the matching message. For `LLMContentFilterError`, inspects `incomplete_details.content_filter_results` and picks the specific category (hate / violence / sexual / self-harm / jailbreak), falling back to `JAILBREAK_ATTEMPT`.
+
+Pattern in agents: `AbstractAgent.arun` calls `CannedMessages.from_llm_error(exc).value[locale]` to surface a localized, user-safe message — never the raw provider error.
+
+---
+
+## Error Handling
+
+`AppExceptionHandler` (`base/tools/exception_handlers.py`) registers FastAPI handlers for the four error tiers and produces consistent `ErrorResponse[T]` payloads. Registered once in `base/main.py` via `AppExceptionHandler().register(app)`.
+
+| Trigger | Handler | Status |
+|---------|---------|--------|
+| `RequestValidationError` | `handle_request_validation_error` | 422 |
+| `StarletteHTTPException` | `handle_starlette_http_exception` | passthrough |
+| `ErrorsException` (`raise_error(...)` from `base/tools/errors.py`) | `handle_errors_exception` | from enum or arg |
+| Unhandled `Exception` | `handle_unhandled_exception` | 500 |
+
+**Debug context.** Outside `ENVIRONMENT == "production"`, every error response includes a `debug: DebugContext` block with `request_id` (from `scope_id`), `path`, `method`, and (for unhandled exceptions) the formatted traceback. In production, `error` collapses to `"Internal server error."` and traceback is omitted.
+
+**Logging.** 5xx errors and unhandled exceptions are logged at error level with `category=ExceptionCategory.API` / `INTERNAL` and the request path; 4xx errors are logged at warning level.
+
+Domain LLM errors (the `LLMError` hierarchy) are caught at the agent / pipeline boundary — they never bubble up to `AppExceptionHandler`.
 
 ---
 
@@ -537,7 +969,12 @@ JWT-based authentication with RS256 (RSA asymmetric keys).
 
 ## Store (Repository) Layer
 
-**Abstract base:** `AbstractStore[T]` in `base/services/store/__init__.py`
+Two complementary abstract bases live in `base/services/store/__init__.py`:
+
+- **`AbstractStore[T]`** — row-keyed entity CRUD (the classic repository pattern).
+- **`AbstractSequenceStore[TParent, TItem]`** — ordered items under a parent key (chat history, event log, notifications). Sibling to `AbstractStore`, not a subclass.
+
+### AbstractStore[T]
 
 A **database-agnostic** generic repository pattern with complete CRUD + pagination. Works with both SQL and NoSQL backends. All operations have sync and async variants:
 
@@ -559,13 +996,27 @@ Public methods are `@final` and handle duplicate-key errors → `UNIQUE_CONSTRAI
 - Implementing all abstract CRUD methods using their chosen service
 - Overriding `_is_duplicate_error(error)` to map their DB driver's duplicate-key exception
 
+### AbstractSequenceStore[TParent, TItem]
+
+Use this instead of `AbstractStore` when the data is grouped under a parent entity, ordered by a monotonic per-parent `sequence: int`, appended far more often than edited, and sometimes cleared or range-replaced as a group.
+
+| Operation | Sync | Async |
+|-----------|------|-------|
+| Append items | `append()` | `aappend()` |
+| Get items (optionally last `limit`) | `get()` | `aget()` |
+| Count items | `count()` | `acount()` |
+| Next sequence number | `next_sequence()` | `anext_sequence()` |
+| Clear all items for a parent | `clear()` | `aclear()` |
+| Replace items up to a sequence | `replace_range()` | `areplace_range()` |
+
+Concrete sub-types live per backend (SQL, Mongo, in-memory) and per domain (chat history, event log, notifications). The chat-history pair is a working example: `ChatHistoryStore` is a marker subclass that names the contract (`AbstractSequenceStore[ConversationId, StoredMessage]`), and `SqlChatHistoryStore` / `InMemoryChatHistoryStore` are the concrete implementations. See [Chat History](#chat-history).
+
 ### SQL Store Example (UserStore)
 
 ```python
 class UserStore(AbstractStore[UserDTO], metaclass=SingletonABC):
     def __init__(self) -> None:
-        super().__init__()
-        self._sql_service = SQLiteService()
+        self._sql_service = SQLService()
         self._base_select_query = select(UserDTO)
 
     def _is_duplicate_error(self, error: Exception) -> bool:
@@ -606,6 +1057,10 @@ Located in `base/models/orm/`.
 - `Base` — `MappedAsDataclass + DeclarativeBase` with `to_dict()`, `update_from_dict()`, `clone()` helpers
 - `TimestampMixin` — adds `created_at`, `updated_at`, `deleted_at` with `soft_delete()` and `restore()` methods
 - `UserDTO` — example user model with UUID primary key, email, password hash, name fields, and indexes
+- `PromptDTO` — versioned prompt template storage with key + version unique constraint
+- `ActivePromptDTO` — tracks the currently active prompt version per key (FK to `PromptDTO`)
+- `ConversationDTO` — chat conversation owned by a user (UUID PK, `user_id` FK, `title`, `meta` JSON, soft-delete + indexes on `user_id` and `created_at`)
+- `ChatHistoryMessageDTO` — one row per message under a conversation; UUID PK, `conversation_id` FK, monotonic `sequence`, `role` (enum), `content`, `tool_calls` (JSON), `tool_call_id`, `token_count`, `meta`. Unique constraint on `(conversation_id, sequence)` enforces ordering correctness.
 
 ORM models are auto-discovered via `pkgutil.walk_packages` in `base/models/orm/__init__.py`.
 
@@ -613,27 +1068,73 @@ ORM models are auto-discovered via `pkgutil.walk_packages` in `base/models/orm/_
 
 Located in `base/models/view_models/`.
 
+**Core wrappers:**
 - `BaseModel` — Pydantic BaseModel with camelCase alias generation, `serialize()`, `deserialize()`, `jsonify()` methods
 - `BaseResponse[T]` — generic success response wrapper (`success: True, data: T`)
-- `ErrorResponse[T]` — generic error response wrapper (`success: False, error: str`)
+- `ErrorResponse[T]` — generic error response wrapper (`success: False, error: str, debug: DebugContext | None`)
+- `DebugContext` — request id, path, method, optional traceback (populated outside production by `AppExceptionHandler`)
 - `HttpResponse` — HTTP response model with `ok()`/`fail()` factory methods
+
+**Pagination:**
 - `PaginatedResult[T]` — paginated response with `data`, `page`, `size`, `total`, `total_pages`
 - `PaginationParams`, `SortingParams`, `FilteredPaginationParams` — query parameter models
+
+**Streaming:**
+- `StreamStart`, `StreamMessage`, `StreamEnd`, `StreamError` — SSE stream event models
+
+**LLM:**
 - `ModelConfigurations` — LLM provider configuration model
 - `EmbeddingConfigurations` — text embedding provider configuration model
-- `StreamStart`, `StreamMessage`, `StreamEnd`, `StreamError` — SSE stream event models
-- Auth models: `RegisterRequest`, `LoginRequest/Response`, `RefreshRequest/Response`, `TokenPair`
-- User models: `GetUserResponse`, `EditUserRequest/Response`, `CreateUserResponse`, `DeleteUserResponse`
+- `OpenAIModels` — OpenAI model name enum (used by `TokenCounter`, etc.)
+- `LLMError` and subclasses — `LLMConfigError`, `LLMBadRequestError`, `LLMAuthError`, `LLMNotFoundError`, `LLMConflictError`, `LLMRateLimitError`, `LLMServerError`, `LLMTimeoutError`, `LLMConnectionError`, `LLMContentFilterError`, `LLMIncompleteError`, `LLMStreamError`, `LLMRetryExhausted`, `LLMUnexpectedError`
+- `CompletionResult`, `ResponseResult`, `ParsedCompletionResult[T]`, `ParsedResponseResult[T]` — return shapes from `OpenAIService`, with `.content` and `.tool_calls` helpers
+
+**Prompts (subpackage `prompt/`):**
+- `Prompt` — `key`, `name`, `description`, `template`, with `render(**vars)` returning a `RenderedPrompt`
+- `PromptTemplate` — accepts either a `template: str` or `messages: list[PromptMessageTemplate]`; validates declared/detected variables; supports `partial_variables`; factory methods `from_messages` / `from_template`
+- `BaseMessageTemplate`, `SystemMessageTemplate`, `DeveloperMessageTemplate`, `UserMessageTemplate`, `AssistantMessageTemplate`, `ToolMessageTemplate`
+- `MessagesPlaceholder` — fan-out template item that splices a list of conversation messages (e.g. chat history) into a typed prompt at render time; `variable_name`, `optional` (default `True`)
+- `RenderedPrompt`, `RenderedPromptInstruction`, `RenderedPromptMessage`, `RenderedPromptItem`
+
+**Chat & conversations:**
+- `ConversationId` — `NewType` over `UUID`, used as the `TParent` for chat-history sequence stores
+- `StoredMessage` — canonical conversation message: `id`, `conversation_id`, `sequence`, `role`, `content`, `tool_calls`, `tool_call_id`, `token_count`, `metadata` (validated by role)
+- `StoredToolCall`, `StoredToolCallFunction` — function-type tool calls
+- `ChatHistoryConfig` — config for `ChatHistoryService` (just `tokenizer_model` for now)
+- `ChatMessageView`, `SendChatRequest`, `SendChatResponse`, `ListChatResponse` — chat router I/O
+- `CreateConversationRequest/Response`, `GetConversationResponse`, `EditConversationRequest/Response`, `DeleteConversationResponse` — conversation router I/O
+
+**Flow & execution context:**
+- `FlowVariables` — single source of truth for one pipeline run (`conversation_id`, `user_query`, `locale`, `final_answer`, plus whatever your pipeline adds)
+- `FlowAbortError` — raised by `AbstractAgent` on a fatal LLM error; carries a `CannedMessages` for the pipeline to surface
+
+**Debug trace:**
+- `DebugCall` — one captured LLM call (agent, label, model, prompt, response, token counts, duration, error)
+- `FlowEvent` — one pipeline-level breadcrumb (`elapsed_ms`, `stage`, `detail`)
+- `DebugTrace` — `started_at`, `calls`, `events`. Auto-populated by `OpenAIService` and persisted to chat-history `metadata.debug`
+
+**Background tasks:**
+- `TaskHandle[T]` — `id`, `name`, `backend`, `created_at`, `metadata`
+
+**Auth & users:**
+- `RegisterRequest`, `LoginRequest/Response`, `RefreshRequest/Response`, `TokenPair`
+- `GetUserResponse`, `EditUserRequest/Response`, `CreateUserResponse`, `DeleteUserResponse`
 
 ### Definitions (Enums, Constants)
 
 Located in `base/models/definitions/`.
 
 - `AuthErrors`, `DatabaseErrors`, `GenericErrors` — error enums with message and status code
-- `DatabaseTable` — table name constants
-- `CacheChannels` — Redis pub/sub channel names
+- `SQLBackend` — SQL backend enum (`sqlite`, `mysql`, `postgresql`) with `sync_driver`/`async_driver` properties
+- `DatabaseTable` — table name constants (`user`, `prompt`, `active_prompt`, `conversation`, `chat_history_message`)
+- `Locale` — `EN`, `AR`, `OTHER` (text locale, used by `CannedMessages` and `get_text_locale`)
+- `SortingOrder` — `ASC`, `DESC`
+- `CacheChannels` — Redis pub/sub channel names (`test`, `keyvault_reload`, `logs`, `prompt_reload`)
 - `ProviderType` — AI provider enum (OpenAI, Azure OpenAI, Ollama, vLLM, Groq, Together, LiteLLM)
-- `MessageRole` — chat message role enum
+- `MessageRole` — chat message role enum (`system`, `developer`, `user`, `assistant`, `tool`)
+- `CannedMessages` — bilingual user-facing strings keyed by `Locale`; `from_llm_error(exc)` maps an `LLMError` (rate limit, content filter category, incomplete, stream, generic) to the matching message
+- `TaskStatus` — background-task lifecycle (`pending`, `running`, `success`, `failed`, `cancelled`)
+- `BackgroundTaskBackend` — `in_memory`, `celery`, `arq`
 - `ExceptionCategory` — exception classification
 - `DistanceMetric` — vector search distance metrics
 
@@ -645,7 +1146,13 @@ Routers are auto-discovered from the `base/routers/` package using `pkgutil.iter
 
 All routers are mounted under the `/api/v1` prefix.
 
-**Note:** The included `auth.py` and `user.py` routers are **testing placeholders**. They demonstrate how to structure routes, wire up services, use `Depends()` for auth, and interact with the store layer. Replace or extend them with your own routes for your actual application.
+**Included routers:**
+
+- `auth.py` — `/auth` register, login, refresh
+- `user.py` — `/users/me` get, edit, soft-delete
+- `conversation.py` — `/conversations` create, get, edit, delete; `/conversations/{id}/messages` send (optionally streaming) + list
+
+`auth.py` and `user.py` are minimal reference implementations; `conversation.py` is a complete end-to-end example showing how to wire `ConversationStore`, `ChatHistoryService`, `ExecutionContext`, an `AbstractAgent` subclass (`TestAgent`), `InMemoryBackgroundTaskService`, and `StreamIterator` together. Use it as the template for your own conversational endpoints.
 
 ### Adding a New Router
 
@@ -661,16 +1168,20 @@ All routers are mounted under the `/api/v1` prefix.
 | Module | Purpose |
 |--------|---------|
 | `database.py` | `SQLResultFormats` — query result processor functions for SQLAlchemy |
-| `errors.py` | `ErrorsException` class and `raise_error()` helper |
-| `security.py` | `PasswordHashingService` (Argon2 hashing), `hash_args` (deterministic SHA-256 of arbitrary args via `ExpansiveEncoder`) |
+| `errors.py` | `ErrorsException`, `StateDecodeError`, and `raise_error()` helper |
+| `exception_handlers.py` | `AppExceptionHandler` — registers FastAPI handlers for `RequestValidationError`, `StarletteHTTPException`, `ErrorsException`, and unhandled `Exception`; injects `DebugContext` outside production |
+| `security.py` | `PasswordHashingService` (Argon2 hashing) |
+| `hashing.py` | `hash_args(*args, **kwargs)` — deterministic SHA-256 of arbitrary args via `ExpansiveEncoder` |
 | `serializers.py` | `ExpansiveEncoder` (JSON encoder for Pydantic, DTOs, UUIDs, datetimes), `serialize()` |
 | `deserializers.py` | JSON deserialization helpers |
 | `routers.py` | `init_routers()` — auto-discovery router registration |
 | `webserver.py` | `run_webserver()` — Uvicorn (dev) / Gunicorn (prod) launcher |
 | `stream.py` | `StreamIterator` — async iterator for SSE streaming |
+| `tokenizer.py` | `TokenCounter` — `KeyedSingleton` tiktoken wrapper, falls back to `cl100k_base` for unknown models |
+| `prompt.py` | `extract_template_variables` (root-name extraction from `str.format` placeholders), `safe_format` (no-op when no `{` present — protects opaque IDs) |
 | `validators.py` | Password validation logic |
 | `misc.py` | JSON serialization, general utilities |
-| `locale.py` | Localization utilities |
+| `locale.py` | `get_text_locale(text, fallback_text=None, default_fallback=None)` — EN/AR detection over Unicode ranges |
 
 ---
 
@@ -727,7 +1238,7 @@ Gunicorn is configured with:
 | GET | `/health-check` | No | Health check |
 | POST | `/logs` | Yes | Live SSE log stream |
 
-### Auth (`/api/v1/auth`) — *placeholder*
+### Auth (`/api/v1/auth`)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -735,13 +1246,26 @@ Gunicorn is configured with:
 | POST | `/login` | No | Login, get token pair |
 | POST | `/refresh` | No | Refresh token pair |
 
-### Users (`/api/v1/users`) — *placeholder*
+### Users (`/api/v1/users`)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/me` | Yes | Get current user profile |
-| PUT | `/me` | Yes | Edit current user profile |
+| PATCH | `/me` | Yes | Edit current user profile |
 | DELETE | `/me` | Yes | Soft-delete current user |
+
+### Conversations (`/api/v1/conversations`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/` | Yes | Create a conversation for the current user |
+| GET | `/{conversation_id}` | Yes | Get a conversation owned by the current user |
+| PATCH | `/{conversation_id}` | Yes | Edit a conversation's title / metadata |
+| DELETE | `/{conversation_id}` | Yes | Soft-delete a conversation (cascades to its messages) |
+| POST | `/{conversation_id}/messages` | Yes | Send a chat message; pass `?streaming=true` for SSE |
+| GET | `/{conversation_id}/messages` | Yes | List canonical messages for a conversation |
+
+`POST /{conversation_id}/messages?streaming=true` returns `text/event-stream` (`StreamStart` → `StreamMessage` deltas → `StreamEnd`, with `StreamError` on failure). The handler runs the chat pipeline as an `InMemoryBackgroundTaskService.spawn_coroutine` task so the stream drains independently of the request handler.
 
 ---
 
@@ -750,16 +1274,18 @@ Gunicorn is configured with:
 | Category | Technology |
 |----------|------------|
 | **Language** | Python 3.12+ |
-| **Framework** | FastAPI + Uvicorn + Gunicorn |
+| **Framework** | FastAPI + Uvicorn (standard) + Gunicorn |
 | **ORM** | SQLAlchemy 2.x (async + sync) |
-| **Validation** | Pydantic v2 |
+| **Validation** | Pydantic v2, pydantic-settings |
 | **Auth** | PyJWT (RS256), Argon2 |
-| **HTTP Client** | httpx (HTTP/2), requests |
-| **Databases** | SQLite, MySQL, PostgreSQL, MongoDB |
+| **HTTP Client** | httpx (HTTP/2), requests, aiohttp |
+| **Databases** | SQLite, MySQL, PostgreSQL, MongoDB, Azure Cosmos DB |
 | **Cache** | Redis (pub/sub, caching, lists) |
-| **Vector DBs** | Qdrant, Azure AI Search |
-| **LLM** | OpenAI SDK (OpenAI, Azure OpenAI, any compatible) |
-| **Cloud** | Azure Key Vault, Azure Blob Storage, Azure Identity |
+| **Vector DBs** | Qdrant, Azure AI Search, MongoDB Atlas Search |
+| **LLM** | OpenAI SDK (Chat Completions + Responses APIs; OpenAI, Azure OpenAI, any compatible) |
+| **Prompt Management** | Custom `PromptTemplate` (no LangChain dependency) |
+| **Tokenizer** | tiktoken (per-model encoding, `cl100k_base` fallback) |
+| **Cloud** | Azure Key Vault, Azure Blob Storage, Azure Cosmos DB, Azure Identity |
 | **Streaming** | SSE via sse-starlette |
 | **Password Hashing** | argon2-cffi |
 | **Logging** | colorlog (colored console output) |
