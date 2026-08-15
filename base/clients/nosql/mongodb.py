@@ -23,7 +23,9 @@ class MongoDBClient(metaclass=Singleton):
         self._max_pool_size: int = settings.mongodb_max_pool_size
         self._connect_timeout_ms: int = settings.mongodb_connect_timeout_ms
         self._socket_timeout_ms: int = settings.mongodb_socket_timeout_ms
-        self._server_selection_timeout_ms: int = settings.mongodb_server_selection_timeout_ms
+        self._server_selection_timeout_ms: int = (
+            settings.mongodb_server_selection_timeout_ms
+        )
 
         self._sync_client: MongoClient[dict[str, Any]] | None = None
         self._async_client: AsyncMongoClient[dict[str, Any]] | None = None

@@ -22,9 +22,7 @@ class CosmosDBClient(metaclass=Singleton):
     def __init__(self) -> None:
         self._endpoint: str = settings.azure_cosmos_account_uri
         if not self._endpoint:
-            raise ValueError(
-                "azure_cosmos_account_uri must be configured in Settings"
-            )
+            raise ValueError("azure_cosmos_account_uri must be configured in Settings")
 
         self._account_key: str | None = settings.azure_cosmos_account_key or None
 

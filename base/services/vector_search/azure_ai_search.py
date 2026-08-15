@@ -49,9 +49,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
     def __init__(self) -> None:
         super().__init__()
         self._client: AzureAISearchClient = AzureAISearchClient()
-        self._vector_field: str = (
-            settings.azure_search_vector_field
-        )
+        self._vector_field: str = settings.azure_search_vector_field
         self._key_field: str = settings.azure_search_key_field
 
     # Collection / Index Management

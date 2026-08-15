@@ -148,9 +148,7 @@ class AbstractAgent(metaclass=SingletonABC):
 
         ctx = self._execution_context
         if "stream_iterator" not in kwargs:
-            kwargs["stream_iterator"] = (
-                ctx.stream_iterator if ctx.streaming else None
-            )
+            kwargs["stream_iterator"] = ctx.stream_iterator if ctx.streaming else None
 
         return await self._llm_service.aresponses(
             input_,
