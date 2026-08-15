@@ -6,7 +6,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.database import Database
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class MongoDBClient(metaclass=Singleton):
@@ -18,28 +18,22 @@ class MongoDBClient(metaclass=Singleton):
     def __init__(self) -> None:
         self._connection_string: str = self._build_connection_string()
 
-        self._min_pool_size: int = LocalConfig.get_int("mongodb_min_pool_size", 5)
-        self._max_pool_size: int = LocalConfig.get_int("mongodb_max_pool_size", 50)
-        self._connect_timeout_ms: int = LocalConfig.get_int(
-            "mongodb_connect_timeout_ms", 10_000
-        )
-        self._socket_timeout_ms: int = LocalConfig.get_int(
-            "mongodb_socket_timeout_ms", 30_000
-        )
-        self._server_selection_timeout_ms: int = LocalConfig.get_int(
-            "mongodb_server_selection_timeout_ms", 30_000
-        )
+        self._min_pool_size: int = settings.mongodb_min_pool_size
+        self._max_pool_size: int = settings.mongodb_max_pool_size
+        self._connect_timeout_ms: int = settings.mongodb_connect_timeout_ms
+        self._socket_timeout_ms: int = settings.mongodb_socket_timeout_ms
+        self._server_selection_timeout_ms: int = settings.mongodb_server_selection_timeout_ms
 
         self._sync_client: MongoClient[dict[str, Any]] | None = None
         self._async_client: AsyncMongoClient[dict[str, Any]] | None = None
 
     @staticmethod
     def _build_connection_string() -> str:
-        base_path: str = LocalConfig.get("mongodb_base_path") or "mongodb"
-        username: str = LocalConfig.get("mongodb_username") or ""
-        password: str = LocalConfig.get("mongodb_password") or ""
-        host: str = LocalConfig.get("mongodb_host") or "localhost"
-        params: str = LocalConfig.get("mongodb_params") or ""
+        base_path: str = settings.mongodb_base_path
+        username: str = settings.mongodb_username
+        password: str = settings.mongodb_password
+        host: str = settings.mongodb_host
+        params: str = settings.mongodb_params
 
         return (
             f"{base_path}://"

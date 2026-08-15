@@ -1,5 +1,5 @@
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncGenerator, Generator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -7,15 +7,13 @@ from sqlalchemy.orm import Session
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend
 from base.services.common.meta import SingletonABC
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.sql import AbstractSQLService
 
 
 class SQLService(AbstractSQLService, metaclass=SingletonABC):
     def __init__(self) -> None:
-        self._backend: SQLBackend = SQLBackend(
-            LocalConfig.get("sql_backend") or "sqlite"
-        )
+        self._backend: SQLBackend = SQLBackend(settings.sql_backend)
         self._client: SQLClient = SQLClient(self._backend)
 
     @contextmanager

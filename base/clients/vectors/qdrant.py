@@ -4,7 +4,7 @@ from qdrant_client import AsyncQdrantClient as QdrantAsyncClient
 from qdrant_client import QdrantClient as QdrantSyncClient
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class QdrantClient(metaclass=Singleton):
@@ -14,11 +14,11 @@ class QdrantClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._url: str = LocalConfig.get("qdrant_url")
-        self._api_key: str = LocalConfig.get("qdrant_api_key")
-        self._grpc_port: int = LocalConfig.get_int("qdrant_grpc_port", 6334)
-        self._prefer_grpc: bool = LocalConfig.get_bool("qdrant_prefer_grpc", True)
-        self._timeout: int = LocalConfig.get_int("qdrant_timeout", 30)
+        self._url: str = settings.qdrant_url
+        self._api_key: str = settings.qdrant_api_key
+        self._grpc_port: int = settings.qdrant_grpc_port
+        self._prefer_grpc: bool = settings.qdrant_prefer_grpc
+        self._timeout: int = settings.qdrant_timeout
 
         self._sync_client: QdrantSyncClient | None = None
         self._async_client: QdrantAsyncClient | None = None

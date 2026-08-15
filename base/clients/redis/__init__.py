@@ -6,7 +6,7 @@ from redis.asyncio.connection import ConnectionPool as AsyncConnectionPool
 from redis.connection import ConnectionPool
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class RedisClient(metaclass=Singleton):
@@ -16,21 +16,17 @@ class RedisClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._url = LocalConfig.get("redis_url")
+        self._url = settings.redis_url
         if not self._url:
-            raise ValueError("redis_url must be configured in LocalConfig")
+            raise ValueError("redis_url must be configured in Settings")
 
-        self._ssl_cert_reqs = LocalConfig.get("redis_ssl_cert_reqs")
-        self._max_connections = LocalConfig.get_int("redis_max_connections", 50)
-        self._socket_timeout = LocalConfig.get_float("redis_socket_timeout", 5.0)
-        self._socket_connect_timeout = LocalConfig.get_float(
-            "redis_socket_connect_timeout", 5.0
-        )
-        self._retry_on_timeout = LocalConfig.get_bool("redis_retry_on_timeout", True)
-        self._health_check_interval = LocalConfig.get_int(
-            "redis_health_check_interval", 30
-        )
-        self._decode_responses = LocalConfig.get_bool("redis_decode_responses", True)
+        self._ssl_cert_reqs = settings.redis_ssl_cert_reqs
+        self._max_connections = settings.redis_max_connections
+        self._socket_timeout = settings.redis_socket_timeout
+        self._socket_connect_timeout = settings.redis_socket_connect_timeout
+        self._retry_on_timeout = settings.redis_retry_on_timeout
+        self._health_check_interval = settings.redis_health_check_interval
+        self._decode_responses = settings.redis_decode_responses
 
         self._sync_pool: ConnectionPool | None = None
         self._async_pool: AsyncConnectionPool | None = None

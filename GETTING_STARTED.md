@@ -29,7 +29,7 @@ It's aimed at:
 - **Multi-database SQL** — SQLite (default), MySQL, or PostgreSQL behind one `SQLService` selected by config.
 - **NoSQL** — MongoDB and Azure Cosmos DB behind one `AbstractNoSQLService`.
 - **Cache** — Redis (with pub/sub + distributed locks) or in-memory for tests.
-- **Azure** — Key Vault secret loading (with pub/sub-driven hot reload), Blob Storage, Cosmos DB.
+- **Azure** — Blob Storage, Cosmos DB, and `AzureKeyVaultService` for runtime vault access (settings themselves are env / `.env`; vault-as-settings-source is documented on `Settings` if you need it later).
 - **Debug tracing** — every LLM call is captured (prompt, response, tokens, duration, errors) into a per-request `DebugTrace`; the conversation router persists it onto the assistant message metadata so you can replay any failure later.
 - **Bilingual canned messages** — English / Arabic user-facing strings (`CannedMessages`) auto-mapped from the `LLMError` that triggered them, so end users see localized, safe messages instead of provider stack traces.
 - **Live log streaming** — `POST /logs` returns an SSE stream of the application's stdout/stderr (authenticated).
@@ -57,12 +57,11 @@ openssl genrsa -out keys/private.pem 2048
 openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 3. Configure
-#    - Edit `config/config.local.ini` for non-secret settings. Default backend is SQLite.
-#    - Create a folder for the SQLite file — `mkdir -p database` is a good default.
-#    - Create `.env` with secret values referenced as `ENV:VAR_NAME` in the .ini file
-#      (e.g., the OpenAI / Azure OpenAI API key the LLM service expects). The shipped
-#      `config.local.ini` reads `sqlite_db_path = ENV:SQLITE_DB_PATH`, so add a line like
-#      `SQLITE_DB_PATH=database/app.db` to your `.env`.
+#    - Copy `.env.example` → `.env` and fill what you need. Defaults in Settings
+#      already work for SQLite + local JWT keys.
+#    - `mkdir -p database` (SQLite file path defaults to `database/app.db`).
+#    - Set LLM keys (e.g. `OPENAI_LLM_API_KEY` or Azure OpenAI vars) when you
+#      hit chat / embeddings endpoints.
 
 # 4. Apply database migrations
 #    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).

@@ -8,10 +8,27 @@ from azure.keyvault.secrets import SecretClient, SecretProperties
 from azure.keyvault.secrets.aio import SecretClient as AsyncSecretClient
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class AzureKeyVaultService(metaclass=Singleton):
+    """Azure Key Vault client for runtime secret get/set/list.
+
+    This is an application service, not the config system. App settings live in
+    `settings` (env / `.env`). Use this when product code needs vault secrets at
+    runtime (customer keys, per-tenant secrets, etc.).
+
+    Wiring Key Vault into Settings later (optional):
+      - Build a `PydanticBaseSettingsSource` that calls `alist_secrets` /
+        `aget_secrets`, strips `settings.system_keyvault_tag` + `-`, and returns
+        a dict of Settings field names → values.
+      - Register it in `Settings.settings_customise_sources`.
+      - For multi-instance hot reload: after rotating secrets, publish
+        `CacheChannels.KEYVAULT_RELOAD`; each process pops/rebuilds the
+        `Settings` singleton (see `Settings` docstring). `format_secret_name`
+        below is the naming convention that source should share.
+    """
+
     def __init__(self) -> None:
         self._client: SecretClient | None = None
         self._async_client: AsyncSecretClient | None = None
@@ -25,7 +42,7 @@ class AzureKeyVaultService(metaclass=Singleton):
         if self._client is None:
             self._credential = DefaultAzureCredential()
             self._client = SecretClient(
-                vault_url=LocalConfig.get("keyvault_url"),
+                vault_url=settings.keyvault_url,
                 credential=self._credential,
             )
         return self._client
@@ -35,7 +52,7 @@ class AzureKeyVaultService(metaclass=Singleton):
         if self._async_client is None:
             self._async_credential = AsyncDefaultAzureCredential()
             self._async_client = AsyncSecretClient(
-                vault_url=LocalConfig.get("keyvault_url"),
+                vault_url=settings.keyvault_url,
                 credential=self._async_credential,
             )
         return self._async_client
@@ -136,8 +153,8 @@ class AzureKeyVaultService(metaclass=Singleton):
     ) -> str:
         """Azure-specific secret name formatting with keyvault tag prefixes."""
         prefixes: list[str] = [
-            LocalConfig.get("system_keyvault_tag"),
-            LocalConfig.get("model_keyvault_tag"),
+            settings.system_keyvault_tag,
+            settings.model_keyvault_tag,
         ]
 
         for prefix in prefixes:
@@ -149,7 +166,7 @@ class AzureKeyVaultService(metaclass=Singleton):
                     )
                 return secret_name
 
-        return f"{LocalConfig.get('system_keyvault_tag')}-{secret_name}"
+        return f"{settings.system_keyvault_tag}-{secret_name}"
 
     def get_service_name(self) -> str:
         return "Azure Key Vault"

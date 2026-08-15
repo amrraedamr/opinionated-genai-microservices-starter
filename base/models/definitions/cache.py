@@ -7,6 +7,7 @@ class CacheKeys(Enum):
 
 class CacheChannels(Enum):
     TEST = "test_channel"
+    # Reserved for a future Settings reload (Key Vault source + pub/sub). See Settings / AzureKeyVaultService.
     KEYVAULT_RELOAD = "keyvault_reload"
     LOGS = "logs"
     PROMPT_RELOAD = "prompt_reload"

@@ -8,7 +8,7 @@ from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class CosmosDBClient(metaclass=Singleton):
@@ -19,15 +19,13 @@ class CosmosDBClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._endpoint: str = LocalConfig.get("azure_cosmos_account_uri")
+        self._endpoint: str = settings.azure_cosmos_account_uri
         if not self._endpoint:
             raise ValueError(
-                "azure_cosmos_account_uri must be configured in LocalConfig"
+                "azure_cosmos_account_uri must be configured in Settings"
             )
 
-        self._account_key: str | None = (
-            LocalConfig.get("azure_cosmos_account_key") or None
-        )
+        self._account_key: str | None = settings.azure_cosmos_account_key or None
 
         self._sync_client: CosmosClient | None = None
         self._async_client: AsyncCosmosClient | None = None

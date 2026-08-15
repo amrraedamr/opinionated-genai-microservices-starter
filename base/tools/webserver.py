@@ -6,15 +6,15 @@ import os
 import uvicorn
 from gunicorn.app.base import BaseApplication
 
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 def run_webserver(
     host: str = os.environ.get("API_HOST", "0.0.0.0"),
     port: int = int(os.environ.get("API_PORT", 8000)),
-    environment: str | None = LocalConfig.environment,
+    environment: str | None = settings.environment,
 ):
-    logging.info(f" Using {environment} config.ini file")
+    logging.info(f"Starting webserver (environment={environment})")
     if environment == "local":
         run_uvicorn(host, port)
     else:
@@ -58,7 +58,7 @@ def run_gunicorn(host: str = "0.0.0.0", port: int = 8000):
     options = {
         "bind": f"{host}:{port}",
         "workers": min(
-            multiprocessing.cpu_count() + 1, LocalConfig.get_int("max_gunicorn_workers")
+            multiprocessing.cpu_count() + 1, settings.max_gunicorn_workers
         ),
         "worker_class": "uvicorn.workers.UvicornWorker",
         "preload": True,

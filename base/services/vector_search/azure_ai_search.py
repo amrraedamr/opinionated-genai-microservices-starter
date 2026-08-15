@@ -21,7 +21,7 @@ from base.models.definitions.vector_search import (
 )
 from base.models.view_models.vector_search import VectorRecord, VectorSearchResult
 from base.services.common.meta import SingletonABC
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.vector_search import AbstractVectorSearchService
 
 _METRIC_MAP: dict[str, VectorSearchAlgorithmMetric] = {
@@ -48,9 +48,9 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         super().__init__()
         self._client: AzureAISearchClient = AzureAISearchClient()
         self._vector_field: str = (
-            LocalConfig.get("azure_search_vector_field") or "vector"
+            settings.azure_search_vector_field
         )
-        self._key_field: str = LocalConfig.get("azure_search_key_field") or "id"
+        self._key_field: str = settings.azure_search_key_field
 
     # Collection / Index Management
 

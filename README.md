@@ -71,14 +71,12 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 ### Configure
 
-1. Edit `config/config.local.ini` — fill in values for the services you need. The default `sql_backend = sqlite` works out of the box once you point it at a path that exists.
-2. Create a `.env` file in the repo root with your secret values (API keys, passwords). The `.env` file is gitignored. Secret keys in `config.local.ini` use the `ENV:` prefix to resolve from environment variables (e.g., `pg_password = ENV:POSTGRES_PASSWORD`).
-3. **SQLite database path.** The shipped `config.local.ini` has `sqlite_db_path = ENV:SQLITE_DB_PATH`, so you need to:
-   - Create a folder for the database file (any path, e.g. `mkdir -p database`).
-   - Add `SQLITE_DB_PATH=database/app.db` (or whatever path you chose) to your `.env`.
-   - Alembic will create the `.db` file inside that folder on the first `alembic upgrade head`. The file itself is gitignored.
-4. For other environments, edit the corresponding `config/config.{environment}.ini` file. In Docker/deployment, secrets are provided via deployment environment variables instead of a `.env` file.
-5. If using Key Vault secret loading, edit `config/config.keyvault.ini` with your tag prefixes.
+1. Copy `.env.example` → `.env` and fill in what you need. Typed defaults live in `Settings` (`base/services/configuration/settings.py`) — you only set the integrations you use.
+2. **SQLite (default):**
+   - `mkdir -p database`
+   - keep `SQL_BACKEND=sqlite` and `SQLITE_DB_PATH=database/app.db` (already in `.env.example`)
+   - Alembic creates the `.db` file on first `alembic upgrade head`
+3. In Docker/deploy, set the same variables as real environment vars instead of a `.env` file.
 
 ### Run Migrations
 
@@ -101,7 +99,7 @@ The API will be available at `http://localhost:8000`. Swagger docs at `http://lo
 
 ### Database Migrations (Alembic)
 
-Schema changes are managed via Alembic. The migration environment reads `sql_backend` from `config.{environment}.ini` to target the correct database.
+Schema changes are managed via Alembic. The migration environment reads `SQL_BACKEND` from Settings (env / `.env`) to target the correct database.
 
 ```bash
 # Apply all pending migrations
@@ -214,10 +212,8 @@ poetry run alembic current
 │   │   │   └── meta/
 │   │   │       └── __init__.py           # Metaclass DI system
 │   │   ├── configuration/
-│   │   │   ├── __init__.py
-│   │   │   ├── keyvault_config.py        # KeyvaultConfig (reads from Key Vault)
-│   │   │   ├── keyvault_config_loader.py # Loads secrets at startup, pub/sub reload
-│   │   │   └── local_config.py           # LocalConfig (reads config.{env}.ini + .env for secrets)
+│   │   │   ├── __init__.py               # exports Settings, settings
+│   │   │   └── settings.py               # Settings (BaseSettings + SingletonSettings)
 │   │   ├── execution_context/
 │   │   │   └── __init__.py               # ExecutionContext (Stored — per-request scope)
 │   │   ├── http/
@@ -295,22 +291,16 @@ poetry run alembic current
 │   └── public.pem                        # RSA public key (JWT verification)
 │
 ├── alembic/                              # Alembic migrations
-│   ├── env.py                            # Migration environment (LocalConfig-driven)
+│   ├── env.py                            # Migration environment (Settings-driven)
 │   ├── script.py.mako                    # Migration file template
 │   └── versions/                         # Migration scripts
 │
 ├── alembic.ini                           # Alembic configuration
-├── config/
-│   ├── config.local.ini                  # Local environment configuration
-│   ├── config.dev.ini                    # Dev environment configuration
-│   ├── config.uat.ini                    # UAT environment configuration
-│   ├── config.staging.ini                # Staging environment configuration
-│   ├── config.prod.ini                   # Production environment configuration
-│   └── config.keyvault.ini               # Key Vault tag prefixes
-├── .env                                  # Local secrets (gitignored, loaded via dotenv)
+├── .env                                  # Local config + secrets (gitignored)
+├── .env.example                          # Documented env var template
 ├── GETTING_STARTED.md                    # Friendly intro: what it is + how to run + try it
 ├── pyproject.toml                        # Poetry project & dependencies
-└── .env.example                          # Example env vars for local secrets
+└── Dockerfile
 ```
 
 ---
@@ -330,7 +320,7 @@ SQL/NoSQL Services (session management, query execution)
    ↓
 Clients (low-level connection management)
    ↓
-Config (LocalConfig / KeyvaultConfig)
+Settings (pydantic-settings singleton from env / `.env`)
 ```
 
 **Key principles:**
@@ -338,77 +328,53 @@ Config (LocalConfig / KeyvaultConfig)
 - All services use metaclass-based DI (no manual wiring, no DI container)
 - Every database client provides both sync and async interfaces
 - Abstract base classes define contracts only where multiple backends exist; single-implementation services are concrete
-- Configuration is split into per-environment files (`config.{environment}.ini`) with secrets resolved from environment variables (`.env` locally, deployment env vars in Docker). Key Vault (`config.keyvault.ini`) is available for Azure deployments
+- Configuration is one typed `settings` object (`BaseSettings` + `SingletonSettings`), loaded from environment variables and optional `.env`. Key Vault is an optional runtime service, not a parallel config bag.
 
 ---
 
 ## Configuration
 
-### config/config.{environment}.ini
+Typed settings live in `base/services/configuration/settings.py` as a `BaseSettings` singleton (`SingletonSettings` metaclass). Import the instance:
 
-Each environment has its own configuration file under `config/`: `config.local.ini`, `config.dev.ini`, `config.uat.ini`, `config.staging.ini`, `config.prod.ini`. The active file is determined by the `ENVIRONMENT` env var (defaults to `local`), which loads `config/config.{ENVIRONMENT}.ini`.
-
-Secrets are **not** stored in config files. Instead, config keys use the `ENV:` prefix to resolve values from environment variables at runtime:
-```ini
-pg_password = ENV:POSTGRES_PASSWORD
-```
-
-For local development, `LocalConfig` automatically loads a `.env` file (via `python-dotenv`) from the backend root directory. For Docker/deployment, secrets are provided as deployment environment variables directly.
-
-Each file contains a single INI section matching the environment name (e.g., `[local]` in `config.local.ini`, `[prod]` in `config.prod.ini`). `LocalConfig` validates that the expected section exists at load time.
-
-**Keys (section name matches the environment):**
-
-| Section | Key | Used By | Description |
-|---------|-----|---------|-------------|
-| `[{environment}]` | `max_gunicorn_workers` | `webserver.py` | Max gunicorn worker count |
-| | `auth_private_key_path` | `AuthService` | Path to RSA private key for JWT signing |
-| | `auth_public_key_path` | `AuthService` | Path to RSA public key for JWT verification |
-| | `access_token_expiry_seconds` | `AuthService` | Access token TTL (default: 900) |
-| | `refresh_token_expiry_seconds` | `AuthService` | Refresh token TTL (default: 604800) |
-| | `sql_backend` | `SQLClient`, `SQLService`, `Alembic` | Active SQL backend: `sqlite`, `mysql`, or `postgresql` |
-| | `sqlite_db_path` | `SQLClient` | Path to SQLite database file |
-| | `db_pool_size` | `SQLClient` (MySQL/PostgreSQL) | Connection pool size |
-| | `db_max_overflow` | `SQLClient` (MySQL/PostgreSQL) | Max overflow connections |
-| | `db_pool_timeout` | `SQLClient` (MySQL/PostgreSQL) | Pool timeout in seconds |
-| | `db_pool_recycle` | `SQLClient` (MySQL/PostgreSQL) | Connection recycle time |
-| | `db_ssl_enabled` | `SQLClient` (MySQL/PostgreSQL) | Enable SSL for DB connections |
-| | `pg_*` | `SQLClient` (PostgreSQL) | PostgreSQL connection settings |
-| | `mysql_*` | `SQLClient` (MySQL) | MySQL connection settings |
-| | `redis_*` | `RedisClient` | Redis connection settings |
-| | `mongodb_*` | `MongoDBClient` | MongoDB connection settings |
-| | `azure_cosmos_account_uri` | `CosmosDBClient` | Azure Cosmos DB account URI |
-| | `azure_cosmos_account_key` | `CosmosDBClient` | Azure Cosmos DB account key (optional if using AAD) |
-| | `azure_blob_account_url` | `AzureBlobClient` | Azure Blob Storage account URL |
-| | `keyvault_url` | `AzureKeyVaultService` | Azure Key Vault URL |
-| | `system_keyvault_tag` | `AzureKeyVaultService` | System/app secret name prefix |
-| | `model_keyvault_tag` | `AzureKeyVaultService` | Model secret name prefix |
-| | `azure_openai_embedding_*` | `OpenAITextEmbedding` | Azure OpenAI embedding config |
-| | `openai_embedding_*` | `OpenAITextEmbedding` | OpenAI embedding config |
-| | `qdrant_*` | `QdrantClient` | Qdrant vector DB config |
-| | `azure_search_*` | `AzureAISearchClient/Service` | Azure AI Search config |
-
-### config/config.keyvault.ini
-
-Static config for the Key Vault secret loading system. Read by `KeyvaultConfigLoader`.
-
-| Key | Description |
-|-----|-------------|
-| `model_keyvault_tag` | Prefix for model-related secrets |
-| `system_keyvault_tag` | Prefix for system/app-related secrets (loaded at startup) |
-
-Secrets fetched from Key Vault are normalized and stored in memory. Access them via:
 ```python
-KeyvaultConfig.get("some_secret_key")
+from base.services.configuration import settings
+
+print(settings.sql_backend)
 ```
 
-### Environment Variables
+### Sources
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENVIRONMENT` | `local` | Selects `config.{ENVIRONMENT}.ini` and its matching section |
-| `API_HOST` | `0.0.0.0` | Webserver bind host |
-| `API_PORT` | `8000` | Webserver bind port |
+| Priority | Source | Notes |
+|----------|--------|--------|
+| 1 | Process environment | Deploy / Docker / CI |
+| 2 | `.env` (optional) | Local only; gitignored. Copy from `.env.example` |
+
+Same `Settings` model everywhere — change `ENVIRONMENT=local|dev|prod|…` (and the rest) in the process env or `.env`.
+
+### Common variables
+
+Full list + comments: [`.env.example`](.env.example). Highlights:
+
+| Variable | Default | Used by |
+|----------|---------|---------|
+| `ENVIRONMENT` | `local` | Webserver (uvicorn vs gunicorn), error debug detail |
+| `APP_NAME` | `opinionated-genai-starter` | Log channel naming |
+| `AUTH_PRIVATE_KEY_PATH` / `AUTH_PUBLIC_KEY_PATH` | `keys/*.pem` | `AuthService` JWT |
+| `SQL_BACKEND` | `sqlite` | `SQLService`, Alembic |
+| `SQLITE_DB_PATH` | `database/app.db` | SQLite URL |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `PG_*` | — | PostgreSQL |
+| `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_*` | — | MySQL |
+| `REDIS_URL` | — | `RedisClient` |
+| `OPENAI_*` / `AZURE_OPENAI_*` | — | LLM + embeddings |
+| `KEYVAULT_URL` / `SYSTEM_KEYVAULT_TAG` / `MODEL_KEYVAULT_TAG` | tags default `appconfig` / `modelconfig` | `AzureKeyVaultService` only |
+
+Webserver bind still uses `API_HOST` / `API_PORT` (read in `run_webserver`, not on `Settings`).
+
+### Key Vault vs Settings
+
+- **Settings** = boot config (env / `.env`).
+- **`AzureKeyVaultService`** = runtime vault CRUD for product features.
+- Vault-as-a-settings-source (custom `PydanticBaseSettingsSource` + `CacheChannels.KEYVAULT_RELOAD`) is intentionally not built; the recipe is on the `Settings` and `AzureKeyVaultService` docstrings.
 
 ---
 
@@ -489,7 +455,7 @@ purge_all()             # Clear everything
 
 Provides a complete SQL toolkit: `query`, `aquery`, `execute`, `aexecute`, `paginate`, `apaginate`, `upsert_row`, `aupsert_row`, `upsert_rows`, `aupsert_rows`, `health_check`, `ahealth_check`, and bulk operations.
 
-**Unified implementation:** A single `SQLClient` (`base/clients/sql/client.py`) and `SQLService` (`base/services/sql/service.py`) handle all three backends, driven by the `SQLBackend` enum. The active backend is resolved from the `sql_backend` key in `config.{env}.ini`.
+**Unified implementation:** A single `SQLClient` (`base/clients/sql/client.py`) and `SQLService` (`base/services/sql/service.py`) handle all three backends, driven by the `SQLBackend` enum. The active backend is `settings.sql_backend`.
 
 | Backend | Sync Driver | Async Driver | Config Keys |
 |---------|-------------|--------------|-------------|
@@ -547,11 +513,11 @@ Config keys: `azure_blob_account_url`
 
 ### Key Vault
 
-`AzureKeyVaultService` (`base/services/keyvault/azure_keyvault.py`) — concrete singleton that manages secrets in Azure Key Vault with sync and async clients, secret name formatting with tag prefixes, and `DefaultAzureCredential` authentication.
+`AzureKeyVaultService` (`base/services/keyvault/azure_keyvault.py`) — runtime vault client (get/set/list) with sync + async SDK wrappers, `DefaultAzureCredential`, and tagged secret naming (`system_keyvault_tag` / `model_keyvault_tag`).
 
-The `KeyvaultConfigLoader` loads tagged secrets at startup and listens for pub/sub reload events for distributed config refresh. Uses `InMemoryCacheService` by default (no Redis required); switch to `RedisCacheService` when a Redis instance is available.
+It is **not** a settings backend. Boot config stays on `settings` (env / `.env`). To load Settings from Key Vault later, add a pydantic-settings custom source + optional `CacheChannels.KEYVAULT_RELOAD` pub/sub — see the docstrings on `Settings` and `AzureKeyVaultService`.
 
-Config keys: `keyvault_url`, `system_keyvault_tag`, `model_keyvault_tag`
+Env: `KEYVAULT_URL`, `SYSTEM_KEYVAULT_TAG`, `MODEL_KEYVAULT_TAG`
 
 ### Vector Search
 
@@ -567,7 +533,7 @@ Config keys: `keyvault_url`, `system_keyvault_tag`, `model_keyvault_tag`
 
 Operations: `search`, `upsert`, `delete`, `get`, `scroll`, `count`, `create_collection`, `delete_collection`, `collection_exists`, `health_check`. All sync + async.
 
-**Atlas Search index management:** `MongoDBService` exposes `create_collection_vector_index()` and `acreate_collection_vector_index()` — idempotent helpers that create or update an Atlas Search vector index for a collection, falling back to drop + recreate (with poll-until-propagated) when an in-place update isn't compatible. Vector size is read from `azure_openai_embedding_dimensions` in config.
+**Atlas Search index management:** `MongoDBService` exposes `create_collection_vector_index()` and `acreate_collection_vector_index()` — idempotent helpers that create or update an Atlas Search vector index for a collection, falling back to drop + recreate (with poll-until-propagated) when an in-place update isn't compatible. Vector size is read from `settings.azure_openai_embedding_dimensions`.
 
 ### Text Embeddings
 
@@ -581,7 +547,7 @@ Features:
 - HTTP/2 connection pooling via `httpx`
 - Azure OpenAI and standard OpenAI client support
 
-Configuration is passed via `EmbeddingConfigurations` Pydantic model (not from config.ini — designed to support dynamic embedding configs from Key Vault or database).
+Configuration is passed via `EmbeddingConfigurations` Pydantic model (defaults from `settings`; designed so callers can still pass dynamic configs).
 
 ### LLM (OpenAI)
 
@@ -667,7 +633,7 @@ Use the `messages=` argument when you need to append history *after* the prompt'
 
 #### Configuration
 
-Configuration is passed via `ModelConfigurations` (Pydantic), not from `config.ini` — designed to support dynamic model configs from Key Vault or database. HTTP/2 connection pooling via `httpx`.
+Configuration is passed via `ModelConfigurations` (Pydantic; defaults from `settings`). HTTP/2 connection pooling via `httpx`.
 
 ### Prompt Management
 

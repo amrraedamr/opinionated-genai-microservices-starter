@@ -1,14 +1,15 @@
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
-import base.routers as routers
+from base import routers
 from base.services.auth.dependencies import validate_user
 from base.services.common.meta import Stored, scope_id
+from base.services.configuration import settings
 from base.services.logging.console import ConsoleLoggerService
 from base.services.logging.tee_stream import TerminalCaptureService
 from base.services.prompt.loader import PromptLoader
@@ -22,9 +23,7 @@ async def lifespan(app: FastAPI):
     logger = ConsoleLoggerService()
     logger.info("Application starting")
 
-    capture_service = TerminalCaptureService(
-        "opinionated-genai-starter"
-    )  # TODO: Amr: Put the app name in config
+    capture_service = TerminalCaptureService(settings.app_name)
     capture_service.start()
 
     try:
@@ -66,7 +65,7 @@ async def register_request(
 init_routers(
     app,
     routers=routers,
-    prefix="/api/v1",
+    prefix="/api/7r",
 )
 
 
@@ -91,6 +90,6 @@ def health_check():
     dependencies=[Depends(validate_user)],
 )
 async def get_logs():
-    capture_service = TerminalCaptureService("opinionated-genai-starter")
+    capture_service = TerminalCaptureService(settings.app_name)
     stream_iterator = StreamIterator(source=capture_service.subscribe())
     return EventSourceResponse(stream_iterator, media_type="text/event-stream")

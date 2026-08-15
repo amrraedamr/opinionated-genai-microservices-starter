@@ -7,7 +7,7 @@ from azure.search.documents.indexes.aio import (
 )
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class AzureAISearchClient(metaclass=Singleton):
@@ -20,13 +20,13 @@ class AzureAISearchClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._endpoint: str = LocalConfig.get("azure_search_endpoint")
+        self._endpoint: str = settings.azure_search_endpoint
         if not self._endpoint:
-            raise ValueError("azure_search_endpoint must be configured in LocalConfig")
+            raise ValueError("azure_search_endpoint must be configured in Settings")
 
-        api_key: str = LocalConfig.get("azure_search_api_key")
+        api_key: str = settings.azure_search_api_key
         if not api_key:
-            raise ValueError("azure_search_api_key must be configured in LocalConfig")
+            raise ValueError("azure_search_api_key must be configured in Settings")
         self._credential: AzureKeyCredential = AzureKeyCredential(api_key)
 
         self._sync_index_client: SearchIndexClient | None = None

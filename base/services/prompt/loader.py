@@ -8,7 +8,7 @@ from base.models.definitions.cache import CacheChannels
 from base.models.view_models.prompt import Prompt
 from base.services.cache.memory import InMemoryCacheService
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.logging.console import ConsoleLoggerService
 
 
@@ -38,7 +38,7 @@ class PromptLoader(metaclass=Singleton):
         self.load_templates()
         self._templates_loaded = True
 
-        if LocalConfig.get_bool("load_prompts_from_db", False):
+        if settings.load_prompts_from_db:
             await self.load_prompts_from_db()
 
         self._logger.info(

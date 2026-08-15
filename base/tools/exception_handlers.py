@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from base.models.definitions.exceptions import ExceptionCategory
 from base.models.view_models import DebugContext, ErrorResponse
 from base.services.common.meta import Singleton, scope_id
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.logging.console import ConsoleLoggerService
 from base.tools.errors import ErrorsException
 
@@ -19,7 +19,7 @@ class AppExceptionHandler(metaclass=Singleton):
 
     @staticmethod
     def _is_debug() -> bool:
-        return LocalConfig.environment != "production"
+        return settings.environment != "production"
 
     @staticmethod
     def _get_request_id() -> str:

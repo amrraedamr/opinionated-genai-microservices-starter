@@ -21,7 +21,7 @@ from base.models.view_models.auth import (
 )
 from base.services.auth.auths import http_bearer
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.store.user import UserStore
 from base.tools.errors import raise_error
 
@@ -29,18 +29,10 @@ from base.tools.errors import raise_error
 class AuthService(metaclass=Singleton):
     def __init__(self) -> None:
         self._user_store: UserStore = UserStore()
-        self._private_key: str = self._load_key(
-            LocalConfig.get("auth_private_key_path") or ""
-        )
-        self._public_key: str = self._load_key(
-            LocalConfig.get("auth_public_key_path") or ""
-        )
-        self._access_token_expiry: int = LocalConfig.get_int(
-            "access_token_expiry_seconds", 900
-        )  # 15 min
-        self._refresh_token_expiry: int = LocalConfig.get_int(
-            "refresh_token_expiry_seconds", 604800
-        )  # 7 days
+        self._private_key: str = self._load_key(settings.auth_private_key_path)
+        self._public_key: str = self._load_key(settings.auth_public_key_path)
+        self._access_token_expiry: int = settings.access_token_expiry_seconds
+        self._refresh_token_expiry: int = settings.refresh_token_expiry_seconds
 
     # Public
 

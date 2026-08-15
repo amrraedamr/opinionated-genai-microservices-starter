@@ -11,7 +11,7 @@ from alembic import context
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend
 from base.models.orm import Base, _import_all_tables
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 config = context.config
 
@@ -23,7 +23,7 @@ target_metadata = Base.metadata
 
 
 def _get_client() -> SQLClient:
-    backend = SQLBackend(LocalConfig.get("sql_backend") or "sqlite")
+    backend = SQLBackend(settings.sql_backend)
     return SQLClient(backend)
 
 

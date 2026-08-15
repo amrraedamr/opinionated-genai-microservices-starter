@@ -4,7 +4,7 @@ from azure.storage.blob import BlobServiceClient
 from azure.storage.blob.aio import BlobServiceClient as AsyncBlobServiceClient
 
 from base.services.common.meta import Singleton
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 
 
 class AzureBlobClient(metaclass=Singleton):
@@ -15,9 +15,9 @@ class AzureBlobClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._account_url: str = LocalConfig.get("azure_blob_account_url")
+        self._account_url: str = settings.azure_blob_account_url
         if not self._account_url:
-            raise ValueError("azure_blob_account_url must be configured in LocalConfig")
+            raise ValueError("azure_blob_account_url must be configured in Settings")
 
         self._sync_client: BlobServiceClient | None = None
         self._async_client: AsyncBlobServiceClient | None = None

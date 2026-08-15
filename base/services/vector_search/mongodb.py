@@ -2,14 +2,14 @@ from typing import Any
 
 from base.clients.nosql.mongodb import MongoDBClient
 from base.models.view_models.vector_search import VectorRecord
-from base.services.configuration.local_config import LocalConfig
+from base.services.configuration import settings
 from base.services.vector_search import AbstractVectorSearchService
 
 
 class MongoDBVectorSearchService(AbstractVectorSearchService):
     def __init__(self):
         self._client = MongoDBClient()
-        self._database_name = LocalConfig.get("mongodb_database")
+        self._database_name = settings.mongodb_database
         self._async_database = self._client.aget_database(self._database_name)
         self._database = self._client.get_database(self._database_name)
 
