@@ -1,11 +1,15 @@
 from abc import abstractmethod
-from typing import ClassVar
+from typing import Any, ClassVar
+
+from openai.types.responses import ResponseInputParam
 
 from base.models.definitions.canned_messages import CannedMessages
 from base.models.definitions.message import MessageRole
+from base.models.definitions.model import ReasoningEffort
 from base.models.view_models.chat_history import ChatHistoryConfig, StoredMessage
 from base.models.view_models.flow import FlowAbortError
 from base.models.view_models.llm_exception import LLMError
+from base.models.view_models.llm_result import ResponseResult
 from base.models.view_models.streams import StreamEnd, StreamMessage
 from base.services.chat_history import ChatHistoryService
 from base.services.common.meta import SingletonABC
@@ -37,6 +41,8 @@ class AbstractAgent(metaclass=SingletonABC):
 
     PROMPT_KEY: ClassVar[str] = ""
     MAX_OUTPUT_TOKENS: ClassVar[int] = 1000
+    REASONING_EFFORT: ClassVar[ReasoningEffort | None] = None
+    HISTORY_LIMIT: ClassVar[int | None] = 40
 
     def __init__(self) -> None:
         self._llm_service: OpenAIService = OpenAIService()
@@ -96,6 +102,9 @@ class AbstractAgent(metaclass=SingletonABC):
         """Fetch the conversation's chat history, minus the trailing
         ``USER`` message.
 
+        Honours :attr:`HISTORY_LIMIT` (most recent N stored messages,
+        including the current user turn before it is sliced off).
+
         The router appends the current request's ``USER`` message to
         the conversation BEFORE the pipeline runs, so the latest
         ``USER`` in the store IS the current query. Each agent's
@@ -114,7 +123,37 @@ class AbstractAgent(metaclass=SingletonABC):
             return []
         all_messages = await self._chat_history_service.aget_messages(
             conversation_id,
+            limit=self.HISTORY_LIMIT,
         )
         if all_messages and all_messages[-1].role == MessageRole.USER:
             return all_messages[:-1]
         return all_messages
+
+    async def _aresponses(
+        self,
+        input_: ResponseInputParam,
+        *,
+        label: str | None = None,
+        **kwargs: Any,
+    ) -> ResponseResult:
+        """Call :meth:`OpenAIService.aresponses` with agent ClassVar defaults.
+
+        Applies ``MAX_OUTPUT_TOKENS``, ``REASONING_EFFORT``, and the
+        request's stream iterator unless the caller overrides them.
+        Explicit kwargs always win.
+        """
+        kwargs.setdefault("max_output_tokens", self.MAX_OUTPUT_TOKENS)
+        if self.REASONING_EFFORT is not None:
+            kwargs.setdefault("reasoning", {"effort": self.REASONING_EFFORT})
+
+        ctx = self._execution_context
+        if "stream_iterator" not in kwargs:
+            kwargs["stream_iterator"] = (
+                ctx.stream_iterator if ctx.streaming else None
+            )
+
+        return await self._llm_service.aresponses(
+            input_,
+            label=label or type(self).__name__,
+            **kwargs,
+        )

@@ -10,3 +10,11 @@ class ProviderType(StrEnum):
     GROQ = "groq"
     TOGETHER = "together"
     LITELLM = "litellm"
+
+
+class ReasoningEffort(StrEnum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    XHIGH = "xhigh"

@@ -804,12 +804,15 @@ Logging config in `base/services/logging/config.py` uses `colorlog` for colored 
 
 **Constants** subclasses set:
 - `PROMPT_KEY: ClassVar[str]` — key into `PromptService` for the agent's system / developer prompt
-- `MAX_OUTPUT_TOKENS: ClassVar[int]` — per-agent cap
+- `MAX_OUTPUT_TOKENS: ClassVar[int]` — per-agent Responses API cap (default `1000`)
+- `REASONING_EFFORT: ClassVar[ReasoningEffort | None]` — optional Responses API reasoning effort (`ReasoningEffort` in `base.models.definitions.model`); `None` omits the field
+- `HISTORY_LIMIT: ClassVar[int | None]` — most recent N stored messages fetched for prompts (default `40`); `None` = unbounded
 
 **Injected services** (set up in `AbstractAgent.__init__`): `OpenAIService`, `PromptService`, `ChatHistoryService`, `ConsoleLoggerService`. Pass `label=type(self).__name__` (or `f"{type(self).__name__}:{item_id}"` for fanout) to the LLM calls so each captured `DebugCall` carries a meaningful identifier.
 
 **Built-in helpers:**
-- `await self._aget_history()` — returns the conversation's `list[StoredMessage]` minus the trailing `USER` message. The conversation router appends the current request's user message **before** the pipeline runs, so the latest stored `USER` is the current query; agent prompts already substitute that into their structured user message via `{user_query}`. Slicing it off here prevents duplicating the same text inline as a history entry. Pass the result as `history=` to `self._prompt_service.render(...)` and let a `MessagesPlaceholder` in the template splice it in. Returns `[]` when the context has no `conversation_id`.
+- `await self._aget_history()` — returns the conversation's `list[StoredMessage]` minus the trailing `USER` message, capped by `HISTORY_LIMIT`. The conversation router appends the current request's user message **before** the pipeline runs, so the latest stored `USER` is the current query; agent prompts already substitute that into their structured user message via `{user_query}`. Slicing it off here prevents duplicating the same text inline as a history entry. Pass the result as `history=` to `self._prompt_service.render(...)` and let a `MessagesPlaceholder` in the template splice it in. Returns `[]` when the context has no `conversation_id`.
+- `await self._aresponses(input_, label=...)` — thin wrapper over `OpenAIService.aresponses` that applies `MAX_OUTPUT_TOKENS`, `REASONING_EFFORT`, streaming from `ExecutionContext`, and a default `label=type(self).__name__`. Explicit kwargs always win.
 
 **Example** (see `base/services/agents/test.py`):
 ```python
@@ -830,11 +833,8 @@ class TestAgent(AbstractAgent):
             history=await self._aget_history(),
             user_query=ctx.flow_variables.user_query,
         )
-        result = await self._llm_service.aresponses(
+        result = await self._aresponses(
             OpenAIMessageAdapter.to_responses_input(prompt=rendered),
-            label=type(self).__name__,
-            max_output_tokens=self.MAX_OUTPUT_TOKENS,
-            stream_iterator=ctx.stream_iterator if ctx.streaming else None,
         )
         ctx.flow_variables.final_answer = (result.content or "").strip()
 ```

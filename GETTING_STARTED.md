@@ -228,6 +228,7 @@ from base.services.llm import OpenAIMessageAdapter
 class GreeterAgent(AbstractAgent):
     PROMPT_KEY: ClassVar[str] = "greeter"
     MAX_OUTPUT_TOKENS: ClassVar[int] = 200
+    HISTORY_LIMIT: ClassVar[int | None] = 20
 
     async def _execute(self) -> None:
         ctx = self._execution_context
@@ -237,11 +238,8 @@ class GreeterAgent(AbstractAgent):
             user_query=ctx.flow_variables.user_query,
             language=ctx.flow_variables.locale.value,
         )
-        result = await self._llm_service.aresponses(
+        result = await self._aresponses(
             OpenAIMessageAdapter.to_responses_input(prompt=rendered),
-            label=type(self).__name__,
-            max_output_tokens=self.MAX_OUTPUT_TOKENS,
-            stream_iterator=ctx.stream_iterator if ctx.streaming else None,
         )
         ctx.flow_variables.final_answer = (result.content or "").strip()
 ```

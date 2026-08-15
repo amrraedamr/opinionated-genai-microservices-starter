@@ -205,18 +205,30 @@ class ChatHistoryService(metaclass=KeyedSingleton):
     async def aget_messages(
         self,
         conversation_id: ConversationId,
+        *,
+        limit: int | None = None,
     ) -> list[StoredMessage]:
-        """Return canonical messages for a conversation."""
-        return await self._afetch_filtered(conversation_id)
+        """Return canonical messages for a conversation.
+
+        If ``limit`` is set, returns the most recent ``limit`` messages
+        (ascending order), after visibility filtering and tool-pair repair.
+        """
+        return await self._afetch_filtered(conversation_id, limit=limit)
 
     # Fetch (sync)
 
     def get_messages(
         self,
         conversation_id: ConversationId,
+        *,
+        limit: int | None = None,
     ) -> list[StoredMessage]:
-        """Return canonical messages for a conversation."""
-        return self._fetch_filtered(conversation_id)
+        """Return canonical messages for a conversation.
+
+        If ``limit`` is set, returns the most recent ``limit`` messages
+        (ascending order), after visibility filtering and tool-pair repair.
+        """
+        return self._fetch_filtered(conversation_id, limit=limit)
 
     # Management
 
@@ -231,14 +243,22 @@ class ChatHistoryService(metaclass=KeyedSingleton):
     # Filtering
 
     async def _afetch_filtered(
-        self, conversation_id: ConversationId
+        self,
+        conversation_id: ConversationId,
+        *,
+        limit: int | None = None,
     ) -> list[StoredMessage]:
-        all_messages = await self._store.aget(conversation_id)
+        all_messages = await self._store.aget(conversation_id, limit=limit)
         visible = self._filter_visible(all_messages)
         return self._repair_tool_pairs(visible)
 
-    def _fetch_filtered(self, conversation_id: ConversationId) -> list[StoredMessage]:
-        all_messages = self._store.get(conversation_id)
+    def _fetch_filtered(
+        self,
+        conversation_id: ConversationId,
+        *,
+        limit: int | None = None,
+    ) -> list[StoredMessage]:
+        all_messages = self._store.get(conversation_id, limit=limit)
         visible = self._filter_visible(all_messages)
         return self._repair_tool_pairs(visible)
 

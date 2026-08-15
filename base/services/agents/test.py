@@ -16,18 +16,8 @@ class TestAgent(AbstractAgent):
             history=await self._aget_history(),
             user_query=self._execution_context.flow_variables.user_query,
         )
-        responses_input = OpenAIMessageAdapter.to_responses_input(
-            prompt=rendered_prompt,
-        )
-        result = await self._llm_service.aresponses(
-            responses_input,
-            label=type(self).__name__,
-            max_output_tokens=self.MAX_OUTPUT_TOKENS,
-            stream_iterator=(
-                self._execution_context.stream_iterator
-                if self._execution_context.streaming
-                else None
-            ),
+        result = await self._aresponses(
+            OpenAIMessageAdapter.to_responses_input(prompt=rendered_prompt),
         )
         self._execution_context.flow_variables.final_answer = (
             result.content or ""
