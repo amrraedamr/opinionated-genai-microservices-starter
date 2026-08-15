@@ -17,16 +17,19 @@ class AbstractStore(ABC, Generic[T]):
     Subclasses are responsible for:
     - Setting up their own database service (SQL or NoSQL) in __init__
     - Implementing all abstract CRUD methods
-    - Overriding _is_duplicate_error() to map their DB's duplicate-key
+    - Overriding _duplicate_error_types() to map their DB's duplicate-key
       exception (e.g. SQLAlchemy IntegrityError, PyMongo DuplicateKeyError)
     """
 
     # Duplicate error hook
 
-    def _is_duplicate_error(self, error: Exception) -> bool:
-        """Return True if the exception represents a duplicate-key / unique
-        constraint violation. Subclasses should override for their DB driver."""
-        return False
+    def _duplicate_error_types(self) -> tuple[type[BaseException], ...]:
+        """Return driver-specific duplicate-key exception types.
+
+        Empty tuple means the store does not translate duplicates — callers
+        see the raw driver error.
+        """
+        return ()
 
     # Get single
 
@@ -86,21 +89,23 @@ class AbstractStore(ABC, Generic[T]):
 
     @final
     def add(self, entity: T) -> T:
+        types = self._duplicate_error_types()
+        if not types:
+            return self._add(entity)
         try:
             return self._add(entity)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     @final
     async def aadd(self, entity: T) -> T:
+        types = self._duplicate_error_types()
+        if not types:
+            return await self._aadd(entity)
         try:
             return await self._aadd(entity)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     # Add many
 
@@ -114,21 +119,23 @@ class AbstractStore(ABC, Generic[T]):
 
     @final
     def add_many(self, entities: list[T]) -> list[T]:
+        types = self._duplicate_error_types()
+        if not types:
+            return self._add_many(entities)
         try:
             return self._add_many(entities)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     @final
     async def aadd_many(self, entities: list[T]) -> list[T]:
+        types = self._duplicate_error_types()
+        if not types:
+            return await self._aadd_many(entities)
         try:
             return await self._aadd_many(entities)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     # Edit
 
@@ -142,21 +149,23 @@ class AbstractStore(ABC, Generic[T]):
 
     @final
     def edit(self, value: Any, entity: T, column_name: str = "id") -> T | None:
+        types = self._duplicate_error_types()
+        if not types:
+            return self._edit(value, entity, column_name)
         try:
             return self._edit(value, entity, column_name)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     @final
     async def aedit(self, value: Any, entity: T, column_name: str = "id") -> T | None:
+        types = self._duplicate_error_types()
+        if not types:
+            return await self._aedit(value, entity, column_name)
         try:
             return await self._aedit(value, entity, column_name)
-        except Exception as e:
-            if self._is_duplicate_error(e):
-                raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
-            raise
+        except types:
+            raise_error(DatabaseErrors.UNIQUE_CONSTRAINT_VIOLATION)
 
     # Delete
 

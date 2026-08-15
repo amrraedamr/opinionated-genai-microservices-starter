@@ -4,7 +4,9 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from typing import Any, TypeVar
 
-from sqlalchemy import asc, desc, func, select, text
+from sqlalchemy import Select, asc, desc, func, select, text
+from sqlalchemy.engine import Result
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import UnaryExpression
@@ -15,8 +17,11 @@ from base.models.view_models.database import (
     SortingOrder,
     SortingParams,
 )
+from base.tools.errors import ServiceHealthCheckError
 
 T = TypeVar("T")
+R = TypeVar("R")
+RowT = TypeVar("RowT")
 
 
 class AbstractSQLService(ABC):
@@ -48,29 +53,28 @@ class AbstractSQLService(ABC):
 
     def query(
         self,
-        sql_query: Any,
-        result_processor: Callable[[Any], T],
+        sql_query: Select[tuple[RowT]],
+        result_processor: Callable[[Result[tuple[RowT]]], R],
         expunge: bool = True,
-    ) -> T:
+    ) -> R:
         """Performs select queries."""
         with self._get_session() as session:
             executed = session.execute(sql_query).unique()
-            result: T = result_processor(executed)
+            result = result_processor(executed)
             if expunge:
                 session.expunge_all()
             return result
 
     async def aquery(
         self,
-        sql_query: Any,
-        result_processor: Callable[[Any], T],
+        sql_query: Select[tuple[RowT]],
+        result_processor: Callable[[Result[tuple[RowT]]], R],
         expunge: bool = True,
-    ) -> T:
+    ) -> R:
         """Performs select queries asynchronously."""
         async with self._aget_session() as session:
-            executed = await session.execute(sql_query)
-            executed = executed.unique()
-            result: T = result_processor(executed)
+            executed = (await session.execute(sql_query)).unique()
+            result = result_processor(executed)
             if expunge:
                 session.expunge_all()
             return result
@@ -196,7 +200,7 @@ class AbstractSQLService(ABC):
         offset: int = (page_params.page - 1) * page_params.size
         fetch_query = sql_query.offset(offset).limit(page_params.size)
         result: list[Any] = self.query(
-            fetch_query, lambda res: res.fetchall(), expunge=expunge
+            fetch_query, lambda res: list(res.fetchall()), expunge=expunge
         )
 
         return PaginatedResult(
@@ -234,7 +238,7 @@ class AbstractSQLService(ABC):
         offset: int = (page_params.page - 1) * page_params.size
         fetch_query = sql_query.offset(offset).limit(page_params.size)
         result: list[Any] = await self.aquery(
-            fetch_query, lambda res: res.fetchall(), expunge=expunge
+            fetch_query, lambda res: list(res.fetchall()), expunge=expunge
         )
 
         return PaginatedResult(
@@ -386,8 +390,8 @@ class AbstractSQLService(ABC):
             with self._get_session() as session:
                 session.execute(text("SELECT 1"))
             return True
-        except Exception as e:
-            raise Exception(
+        except SQLAlchemyError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
@@ -397,7 +401,7 @@ class AbstractSQLService(ABC):
             async with self._aget_session() as session:
                 await session.execute(text("SELECT 1"))
             return True
-        except Exception as e:
-            raise Exception(
+        except SQLAlchemyError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e

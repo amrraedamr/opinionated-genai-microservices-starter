@@ -23,6 +23,10 @@ class StateDecodeError(ValueError):
     """Raised when the encoded state is invalid, tampered, or cannot be decoded."""
 
 
+class ServiceHealthCheckError(Exception):
+    """Raised when a backend service health probe fails."""
+
+
 def raise_error(
     error: Enum | None = None,
     message: str | None = None,

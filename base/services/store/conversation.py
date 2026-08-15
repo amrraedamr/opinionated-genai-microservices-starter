@@ -24,8 +24,8 @@ class ConversationStore(AbstractStore[ConversationDTO], metaclass=SingletonABC):
             ConversationDTO
         )
 
-    def _is_duplicate_error(self, error: Exception) -> bool:
-        return isinstance(error, IntegrityError)
+    def _duplicate_error_types(self) -> tuple[type[BaseException], ...]:
+        return (IntegrityError,)
 
     # Helpers
 

@@ -7,6 +7,7 @@ from openai import (
     DefaultAsyncHttpxClient,
     DefaultHttpxClient,
     OpenAI,
+    OpenAIError,
     Stream,
 )
 from openai.types.chat import (
@@ -323,7 +324,7 @@ class OpenAIService(metaclass=KeyedSingleton):
 
             stream_iterator.send(StreamEnd())
 
-        except Exception as e:
+        except OpenAIError as e:
             self._logger.error(f"Error during streaming completion: {e}")
             stream_iterator.send(self._build_stream_error(e, error_code=500))
             raise LLMStreamError(
@@ -364,7 +365,7 @@ class OpenAIService(metaclass=KeyedSingleton):
 
             await stream_iterator.asend(StreamEnd())
 
-        except Exception as e:
+        except OpenAIError as e:
             self._logger.error(f"Error during streaming completion: {e}")
             await stream_iterator.asend(self._build_stream_error(e, error_code=500))
             raise LLMStreamError(
@@ -547,7 +548,7 @@ class OpenAIService(metaclass=KeyedSingleton):
             )
             raise
 
-        except Exception as e:
+        except OpenAIError as e:
             self._logger.error(f"Error during streaming response: {e}")
             stream_iterator.send(self._build_stream_error(e, error_code=500))
             raise LLMStreamError(
@@ -617,7 +618,7 @@ class OpenAIService(metaclass=KeyedSingleton):
             )
             raise
 
-        except Exception as e:
+        except OpenAIError as e:
             self._logger.error(f"Error during streaming response: {e}")
             await stream_iterator.asend(self._build_stream_error(e, error_code=500))
             raise LLMStreamError(
@@ -898,6 +899,8 @@ class OpenAIService(metaclass=KeyedSingleton):
         ``input_tokens`` / ``output_tokens``. We normalise both to
         the ``input/output/total`` triple captured on
         :class:`DebugCall`."""
+        if usage is None:
+            return 0, 0, 0
         if isinstance(usage, ResponseUsage):
             input_tokens = int(usage.input_tokens or 0)
             output_tokens = int(usage.output_tokens or 0)

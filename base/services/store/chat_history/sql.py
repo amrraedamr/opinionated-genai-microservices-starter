@@ -32,8 +32,8 @@ class SqlChatHistoryStore(ChatHistoryStore, metaclass=SingletonABC):
             ChatHistoryMessageDTO
         )
 
-    def _is_duplicate_error(self, error: Exception) -> bool:
-        return isinstance(error, IntegrityError)
+    def _duplicate_error_types(self) -> tuple[type[BaseException], ...]:
+        return (IntegrityError,)
 
     # Mapping
 

@@ -1,6 +1,7 @@
 import json
 from typing import Any
 
+from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.search.documents.indexes.models import (
     HnswAlgorithmConfiguration,
     HnswParameters,
@@ -23,6 +24,7 @@ from base.models.view_models.vector_search import VectorRecord, VectorSearchResu
 from base.services.common.meta import SingletonABC
 from base.services.configuration import settings
 from base.services.vector_search import AbstractVectorSearchService
+from base.tools.errors import ServiceHealthCheckError
 
 _METRIC_MAP: dict[str, VectorSearchAlgorithmMetric] = {
     DistanceMetric.COSINE: VectorSearchAlgorithmMetric.COSINE,
@@ -178,7 +180,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
             try:
                 doc = client.get_document(key=doc_id)
                 records.append(self._document_to_record(doc, with_vectors))
-            except Exception:
+            except ResourceNotFoundError:
                 continue
         return records
 
@@ -194,7 +196,7 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
             try:
                 doc = await client.get_document(key=doc_id)
                 records.append(self._document_to_record(doc, with_vectors))
-            except Exception:
+            except ResourceNotFoundError:
                 continue
         return records
 
@@ -288,8 +290,8 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
         try:
             list(self._client.sync_index_client.list_index_names())
             return True
-        except Exception as e:
-            raise Exception(
+        except AzureError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
@@ -298,8 +300,8 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
             async for _ in self._client.async_index_client.list_index_names():
                 break
             return True
-        except Exception as e:
-            raise Exception(
+        except AzureError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 

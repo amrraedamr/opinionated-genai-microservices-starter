@@ -5,7 +5,7 @@ from json import JSONDecodeError
 from typing import Any, ClassVar
 from uuid import UUID
 
-from base.clients.redis import RedisClient
+from base.clients.redis_client import RedisClient
 from base.models.definitions.cache import CacheChannels, CacheKeys
 from base.services.cache import AbstractCacheService
 from base.services.common.meta import SingletonABC

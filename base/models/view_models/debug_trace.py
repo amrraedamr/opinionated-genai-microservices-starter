@@ -14,7 +14,7 @@ from base.models.view_models import BaseModel
 # Type aliases for the LLM-call payloads captured in the trace. The
 # two API surfaces (Chat Completions and Responses) use different
 # prompt and usage shapes; the union covers both. Re-exported here
-# (rather than in ``services/llm/openai.py``) so :class:`DebugCall`
+# (rather than in ``services/llm/openai_service.py``) so :class:`DebugCall`
 # can use them directly and the LLM service imports them too — single
 # source of truth.
 

@@ -4,6 +4,7 @@ from typing import Any
 from pymongo import AsyncMongoClient, MongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.database import Database
+from pymongo.errors import PyMongoError
 
 from base.services.common.meta import Singleton
 from base.services.configuration import settings
@@ -97,7 +98,7 @@ class MongoDBClient(metaclass=Singleton):
         try:
             self.sync_client.admin.command("ping")
             return True
-        except Exception:
+        except PyMongoError:
             return False
 
     async def aping(self) -> bool:
@@ -105,7 +106,7 @@ class MongoDBClient(metaclass=Singleton):
         try:
             await self.async_client.admin.command("ping")
             return True
-        except Exception:
+        except PyMongoError:
             return False
 
     def close(self) -> None:

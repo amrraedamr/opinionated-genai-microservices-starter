@@ -2,6 +2,10 @@ from typing import Any
 
 from qdrant_client import AsyncQdrantClient as QdrantAsyncClient
 from qdrant_client import QdrantClient as QdrantSyncClient
+from qdrant_client.http.exceptions import (
+    ResponseHandlingException,
+    UnexpectedResponse,
+)
 
 from base.services.common.meta import Singleton
 from base.services.configuration import settings
@@ -69,7 +73,7 @@ class QdrantClient(metaclass=Singleton):
         try:
             self.sync_client.get_collections()
             return True
-        except Exception:
+        except (UnexpectedResponse, ResponseHandlingException, OSError):
             return False
 
     async def aping(self) -> bool:
@@ -77,7 +81,7 @@ class QdrantClient(metaclass=Singleton):
         try:
             await self.async_client.get_collections()
             return True
-        except Exception:
+        except (UnexpectedResponse, ResponseHandlingException, OSError):
             return False
 
     def close(self) -> None:

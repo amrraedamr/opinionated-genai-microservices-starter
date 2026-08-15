@@ -10,6 +10,7 @@ from base.services.common.meta import SingletonABC
 from base.services.configuration import settings
 from base.services.logging.console import ConsoleLoggerService
 from base.services.nosql import AbstractNoSQLService
+from base.tools.errors import ServiceHealthCheckError
 
 
 class CosmosDBService(AbstractNoSQLService, metaclass=SingletonABC):
@@ -253,11 +254,13 @@ class CosmosDBService(AbstractNoSQLService, metaclass=SingletonABC):
             try:
                 result = container.upsert_item(body=doc)
                 ids.append(str(result["id"]))
-            except Exception:
+            except exceptions.CosmosHttpResponseError as e:
                 if ordered:
                     raise
                 self._logger.error(
-                    "Failed to insert document in batch for collection %s", collection
+                    "Failed to insert document in batch for collection %s: %s",
+                    collection,
+                    e,
                 )
         return ids
 
@@ -273,11 +276,13 @@ class CosmosDBService(AbstractNoSQLService, metaclass=SingletonABC):
             try:
                 result = await container.upsert_item(body=doc)
                 ids.append(str(result["id"]))
-            except Exception:
+            except exceptions.CosmosHttpResponseError as e:
                 if ordered:
                     raise
                 self._logger.error(
-                    "Failed to insert document in batch for collection %s", collection
+                    "Failed to insert document in batch for collection %s: %s",
+                    collection,
+                    e,
                 )
         return ids
 
@@ -689,19 +694,15 @@ class CosmosDBService(AbstractNoSQLService, metaclass=SingletonABC):
     # Health Check
 
     def health_check(self) -> bool:
-        try:
-            self._client.ping()
-            return True
-        except Exception as e:
-            raise Exception(
-                f"{self.get_service_name()} health check failed: {e}"
-            ) from e
+        if not self._client.ping():
+            raise ServiceHealthCheckError(
+                f"{self.get_service_name()} health check failed"
+            )
+        return True
 
     async def ahealth_check(self) -> bool:
-        try:
-            await self._client.aping()
-            return True
-        except Exception as e:
-            raise Exception(
-                f"{self.get_service_name()} health check failed: {e}"
-            ) from e
+        if not await self._client.aping():
+            raise ServiceHealthCheckError(
+                f"{self.get_service_name()} health check failed"
+            )
+        return True

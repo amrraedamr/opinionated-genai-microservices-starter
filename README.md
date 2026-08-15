@@ -223,11 +223,11 @@ poetry run alembic current
 │   │   │   └── azure_keyvault.py         # AzureKeyVaultService (concrete singleton)
 │   │   ├── llm/
 │   │   │   ├── __init__.py               # OpenAIService, OpenAIMessageAdapter re-exports
-│   │   │   ├── openai.py                 # OpenAIService (Chat Completions + Responses, debug capture)
+│   │   │   ├── openai_service.py         # OpenAIService (Chat Completions + Responses, debug capture)
 │   │   │   ├── openai_adapter.py         # OpenAIMessageAdapter (StoredMessage/RenderedPrompt → OpenAI)
 │   │   │   └── error_handler/
 │   │   │       ├── __init__.py
-│   │   │       └── openai.py             # OpenAIErrorHandler (retry + classify + content filter)
+│   │   │       └── openai_handler.py     # OpenAIErrorHandler (retry + classify + content filter)
 │   │   ├── logging/
 │   │   │   ├── __init__.py               # LogMessage type alias
 │   │   │   ├── config.py                 # Colored logging config
@@ -259,7 +259,7 @@ poetry run alembic current
 │   │   │   └── user.py                   # UserStore implementation
 │   │   ├── text_embedding/
 │   │   │   ├── __init__.py
-│   │   │   └── openai.py                 # OpenAITextEmbeddingService (concrete keyed singleton)
+│   │   │   └── openai_embedding.py       # OpenAITextEmbeddingService (concrete keyed singleton)
 │   │   └── vector_search/
 │   │       ├── __init__.py               # AbstractVectorSearchService
 │   │       ├── azure_ai_search.py        # AzureAISearchService implementation
@@ -537,7 +537,7 @@ Operations: `search`, `upsert`, `delete`, `get`, `scroll`, `count`, `create_coll
 
 ### Text Embeddings
 
-`OpenAITextEmbeddingService` (`base/services/text_embedding/openai.py`) — concrete keyed singleton that works with any OpenAI-compatible embedding API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.)
+`OpenAITextEmbeddingService` (`base/services/text_embedding/openai_embedding.py`) — concrete keyed singleton that works with any OpenAI-compatible embedding API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.)
 
 Uses `KeyedSingleton` with auto-derived keys: passing the same `EmbeddingConfigurations` returns the cached instance, while a different config creates a new one.
 
@@ -551,7 +551,7 @@ Configuration is passed via `EmbeddingConfigurations` Pydantic model (defaults f
 
 ### LLM (OpenAI)
 
-`OpenAIService` (`base/services/llm/openai.py`) — concrete keyed singleton that works with any OpenAI-compatible API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.).
+`OpenAIService` (`base/services/llm/openai_service.py`) — concrete keyed singleton that works with any OpenAI-compatible API (OpenAI, Azure OpenAI, vLLM, Ollama, LiteLLM, Together, Groq, etc.).
 
 Uses `KeyedSingleton` with auto-derived keys: passing the same `ModelConfigurations` returns the cached instance, while a different config creates a new one. This means one client + connection pool per unique model configuration, with no manual key management required.
 
@@ -600,7 +600,7 @@ Retry-exhausted variants (`LLMRateLimitError`, `LLMServerError`, `LLMTimeoutErro
 
 #### OpenAIErrorHandler
 
-`base/services/llm/error_handler/openai.py` centralizes classification, retry policy, and domain wrapping behind `.run()` / `.arun()`. Behaviour:
+`base/services/llm/error_handler/openai_handler.py` centralizes classification, retry policy, and domain wrapping behind `.run()` / `.arun()`. Behaviour:
 
 - **Classification:** walks the SDK exception MRO against a table; unknown errors map to `LLMUnexpectedError`. Bad-request errors carrying a `content_filter` code are routed to `LLMContentFilterError`.
 - **Retry:** retryable errors (rate limit, 5xx, timeout, connection) get retried up to `retries + 1` attempts.

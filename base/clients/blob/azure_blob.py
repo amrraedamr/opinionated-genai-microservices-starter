@@ -1,3 +1,4 @@
+from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
@@ -52,14 +53,14 @@ class AzureBlobClient(metaclass=Singleton):
         try:
             self.sync_client.get_account_information()
             return True
-        except Exception:
+        except AzureError:
             return False
 
     async def aping(self) -> bool:
         try:
             await self.async_client.get_account_information()
             return True
-        except Exception:
+        except AzureError:
             return False
 
     def close(self) -> None:

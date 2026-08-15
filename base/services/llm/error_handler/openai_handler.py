@@ -117,6 +117,7 @@ class OpenAIErrorHandler:
                 raise self._wrap(e, domain_cls) from e
 
             except Exception as e:
+                # Intentional boundary: map unknown failures to our domain error.
                 raise LLMUnexpectedError.from_openai(e) from e
 
         assert last_error is not None
@@ -154,6 +155,7 @@ class OpenAIErrorHandler:
                 raise self._wrap(e, domain_cls) from e
 
             except Exception as e:
+                # Intentional boundary: map unknown failures to our domain error.
                 raise LLMUnexpectedError.from_openai(e) from e
 
         assert last_error is not None

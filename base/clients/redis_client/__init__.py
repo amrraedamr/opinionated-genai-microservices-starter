@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, Awaitable, cast
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 from redis.asyncio.connection import ConnectionPool as AsyncConnectionPool
 from redis.connection import ConnectionPool
+from redis.exceptions import RedisError
 
 from base.services.common.meta import Singleton
 from base.services.configuration import settings
@@ -86,15 +87,17 @@ class RedisClient(metaclass=Singleton):
     def ping(self) -> bool:
         """Sync health check."""
         try:
-            return self.sync_client.ping()  # type: ignore
-        except Exception:
+            return bool(self.sync_client.ping())
+        except RedisError:
             return False
 
     async def aping(self) -> bool:
         """Async health check."""
         try:
-            return await self.async_client.ping()  # type: ignore
-        except Exception:
+            # redis-py types ping as Awaitable[bool] | bool
+            result = await cast(Awaitable[Any], self.async_client.ping())
+            return bool(result)
+        except RedisError:
             return False
 
     def close(self) -> None:

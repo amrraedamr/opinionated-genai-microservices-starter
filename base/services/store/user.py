@@ -16,8 +16,8 @@ class UserStore(AbstractStore[UserDTO], metaclass=SingletonABC):
         self._sql_service: SQLService = SQLService()
         self._base_select_query: Select[tuple[UserDTO]] = select(UserDTO)
 
-    def _is_duplicate_error(self, error: Exception) -> bool:
-        return isinstance(error, IntegrityError)
+    def _duplicate_error_types(self) -> tuple[type[BaseException], ...]:
+        return (IntegrityError,)
 
     @staticmethod
     def _sanitize_update_data(data: dict[str, Any]) -> dict[str, Any]:

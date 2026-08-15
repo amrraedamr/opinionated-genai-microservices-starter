@@ -1,4 +1,5 @@
 from azure.core.credentials import AzureKeyCredential
+from azure.core.exceptions import AzureError
 from azure.search.documents import SearchClient
 from azure.search.documents.aio import SearchClient as AsyncSearchClient
 from azure.search.documents.indexes import SearchIndexClient
@@ -83,7 +84,7 @@ class AzureAISearchClient(metaclass=Singleton):
         try:
             list(self.sync_index_client.list_index_names())
             return True
-        except Exception:
+        except AzureError:
             return False
 
     async def aping(self) -> bool:
@@ -92,7 +93,7 @@ class AzureAISearchClient(metaclass=Singleton):
             async for _ in self.async_index_client.list_index_names():
                 break
             return True
-        except Exception:
+        except AzureError:
             return False
 
     def close(self) -> None:

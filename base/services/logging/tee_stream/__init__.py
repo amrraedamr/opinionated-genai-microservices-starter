@@ -37,7 +37,7 @@ class TeeStream:
             batch.append(self._buffer.popleft())
         try:
             await self._cache_service.apublish_batch(self._channel, batch)
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
             logging.exception("Failed to publish logs to cache: %s", e)
 
     def write(self, text: str) -> int:

@@ -1,5 +1,9 @@
 from typing import Any, cast
 
+from qdrant_client.http.exceptions import (
+    ResponseHandlingException,
+    UnexpectedResponse,
+)
 from qdrant_client.models import (
     Condition,
     ExtendedPointId,
@@ -21,6 +25,7 @@ from base.models.definitions.vector_search import (
 from base.models.view_models.vector_search import VectorRecord, VectorSearchResult
 from base.services.common.meta import SingletonABC
 from base.services.vector_search import AbstractVectorSearchService
+from base.tools.errors import ServiceHealthCheckError
 
 
 class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=SingletonABC):
@@ -290,8 +295,8 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
         try:
             self._client.sync_client.get_collections()
             return True
-        except Exception as e:
-            raise Exception(
+        except (UnexpectedResponse, ResponseHandlingException, OSError) as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
@@ -299,8 +304,8 @@ class QdrantVectorSearchService(AbstractVectorSearchService, metaclass=Singleton
         try:
             await self._client.async_client.get_collections()
             return True
-        except Exception as e:
-            raise Exception(
+        except (UnexpectedResponse, ResponseHandlingException, OSError) as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 

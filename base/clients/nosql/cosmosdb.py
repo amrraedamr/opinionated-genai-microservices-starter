@@ -1,5 +1,6 @@
 from typing import Any
 
+from azure.core.exceptions import AzureError
 from azure.cosmos import ContainerProxy, CosmosClient, DatabaseProxy
 from azure.cosmos.aio import ContainerProxy as AsyncContainerProxy
 from azure.cosmos.aio import CosmosClient as AsyncCosmosClient
@@ -82,7 +83,7 @@ class CosmosDBClient(metaclass=Singleton):
         try:
             next(iter(self.sync_client.list_databases()), None)
             return True
-        except Exception:
+        except AzureError:
             return False
 
     async def aping(self) -> bool:
@@ -91,7 +92,7 @@ class CosmosDBClient(metaclass=Singleton):
             async for _ in self.async_client.list_databases():
                 break
             return True
-        except Exception:
+        except AzureError:
             return False
 
     def close(self) -> None:

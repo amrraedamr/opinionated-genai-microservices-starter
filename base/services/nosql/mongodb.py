@@ -5,7 +5,7 @@ from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.database import Database
-from pymongo.errors import OperationFailure
+from pymongo.errors import OperationFailure, PyMongoError
 from pymongo.operations import SearchIndexModel
 
 from base.clients.nosql.mongodb import MongoDBClient
@@ -13,6 +13,7 @@ from base.models.view_models.database import PaginatedResult, PaginationParams
 from base.services.common.meta import SingletonABC
 from base.services.configuration import settings
 from base.services.nosql import AbstractNoSQLService
+from base.tools.errors import ServiceHealthCheckError
 
 
 class MongoDBService(AbstractNoSQLService, metaclass=SingletonABC):
@@ -531,8 +532,8 @@ class MongoDBService(AbstractNoSQLService, metaclass=SingletonABC):
         try:
             self._get_database().command("ping")
             return True
-        except Exception as e:
-            raise Exception(
+        except PyMongoError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e
 
@@ -540,7 +541,7 @@ class MongoDBService(AbstractNoSQLService, metaclass=SingletonABC):
         try:
             await self._aget_database().command("ping")
             return True
-        except Exception as e:
-            raise Exception(
+        except PyMongoError as e:
+            raise ServiceHealthCheckError(
                 f"{self.get_service_name()} health check failed: {e}"
             ) from e

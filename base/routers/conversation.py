@@ -24,6 +24,7 @@ from base.models.view_models.conversation import (
     GetConversationResponse,
 )
 from base.models.view_models.execution_context import FlowVariables
+from base.models.view_models.flow import FlowAbortError
 from base.models.view_models.streams import StreamError
 from base.services.agents.test import TestAgent
 from base.services.auth.dependencies import validate_user_dependency
@@ -33,7 +34,7 @@ from base.services.execution_context import ExecutionContext
 from base.services.logging.console import ConsoleLoggerService
 from base.services.store.chat_history.sql import SqlChatHistoryStore
 from base.services.store.conversation import ConversationStore
-from base.tools.errors import raise_error
+from base.tools.errors import ErrorsException, raise_error
 from base.tools.locale import get_text_locale
 from base.tools.stream import StreamIterator
 
@@ -136,6 +137,8 @@ async def send_message(
         locale=get_text_locale(request.content),
     )
 
+    stream_iterator: StreamIterator | None = None
+
     async def run() -> str:
         try:
             await chat_history_service.aappend_message(
@@ -159,16 +162,30 @@ async def send_message(
             )
 
             return execution_context.flow_variables.final_answer
-        except Exception as e:
+        except FlowAbortError as e:
+            return e.canned_message.value[execution_context.flow_variables.locale]
+        except ErrorsException as e:
             logger.error(f"send_message run failed: {e}")
             if stream_iterator is not None:
-                await stream_iterator.asend(StreamError(error_code=500, text=str(e)))
+                await stream_iterator.asend(
+                    StreamError(
+                        error_code=e.status_code or 500,
+                        text=str(e),
+                    )
+                )
+            raise
+        except Exception as e:
+            # SSE boundary only: emit an error frame so clients don't hang.
+            if stream_iterator is None:
+                raise
+            logger.error(f"send_message run failed: {e}")
+            await stream_iterator.asend(StreamError(error_code=500, text=str(e)))
             raise
 
     if streaming:
         stream_iterator = StreamIterator()
         execution_context.streaming = True
-        execution_context.stream_iterator = StreamIterator()
+        execution_context.stream_iterator = stream_iterator
         InMemoryBackgroundTaskService().spawn_coroutine(
             run(), name="send_message.stream"
         )
