@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import Any, Literal, overload
 
 import httpx
 import requests
@@ -52,6 +52,11 @@ class HttpRequestService(metaclass=Singleton):
         return {"url": url, "text": text}
 
     @staticmethod
+    def _response_headers(headers: Any) -> dict[str, str]:
+        # Normalize to lowercase so lookups stay case-insensitive after flattening.
+        return {str(key).lower(): str(value) for key, value in headers.items()}
+
+    @staticmethod
     def _extract_error_detail(
         response: requests.Response | httpx.Response | None,
     ) -> dict[str, Any] | str | None:
@@ -61,6 +66,57 @@ class HttpRequestService(metaclass=Singleton):
             return response.json()
         except (ValueError, RuntimeError):
             return response.text
+
+    @overload
+    def call_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: Literal[False] = False,
+    ) -> HttpResponse: ...
+
+    @overload
+    def call_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: Literal[True],
+    ) -> bytes: ...
+
+    @overload
+    def call_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: bool = False,
+    ) -> HttpResponse | bytes: ...
 
     def call_endpoint(
         self,
@@ -103,7 +159,11 @@ class HttpRequestService(metaclass=Singleton):
                     text=resp.text,
                     url=str(resp.url),
                 )
-                return HttpResponse.ok(status_code=resp.status_code, data=body_data)
+                return HttpResponse.ok(
+                    status_code=resp.status_code,
+                    data=body_data,
+                    headers=self._response_headers(resp.headers),
+                )
 
             except requests.exceptions.Timeout as e:
                 last_error = e
@@ -127,6 +187,9 @@ class HttpRequestService(metaclass=Singleton):
                     if e.response is not None
                     else None,
                     error_detail=self._extract_error_detail(e.response),
+                    headers=self._response_headers(e.response.headers)
+                    if e.response is not None
+                    else None,
                 )
 
         if raw:
@@ -134,6 +197,57 @@ class HttpRequestService(metaclass=Singleton):
                 f"Request timed out after {retry_count + 1} attempts: {last_error}"
             )
         return HttpResponse.fail(error=last_error or Exception("Unknown error"))
+
+    @overload
+    async def acall_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: Literal[False] = False,
+    ) -> HttpResponse: ...
+
+    @overload
+    async def acall_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: Literal[True],
+    ) -> bytes: ...
+
+    @overload
+    async def acall_endpoint(
+        self,
+        url: str,
+        method: str = "GET",
+        query_params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        auth: tuple[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        retry_count: int = _MAX_RETRIES,
+        *,
+        raw: bool = False,
+    ) -> HttpResponse | bytes: ...
 
     async def acall_endpoint(
         self,
@@ -177,7 +291,11 @@ class HttpRequestService(metaclass=Singleton):
                     text=resp.text,
                     url=str(resp.url),
                 )
-                return HttpResponse.ok(status_code=resp.status_code, data=body_data)
+                return HttpResponse.ok(
+                    status_code=resp.status_code,
+                    data=body_data,
+                    headers=self._response_headers(resp.headers),
+                )
 
             except httpx.TimeoutException as e:
                 last_error = e
@@ -199,6 +317,7 @@ class HttpRequestService(metaclass=Singleton):
                     error=e,
                     status_code=e.response.status_code,
                     error_detail=self._extract_error_detail(e.response),
+                    headers=self._response_headers(e.response.headers),
                 )
 
             except httpx.RequestError as e:

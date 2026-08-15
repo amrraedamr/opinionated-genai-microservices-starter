@@ -1,6 +1,6 @@
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HttpResponse(BaseModel):
@@ -9,6 +9,7 @@ class HttpResponse(BaseModel):
     success: bool
     status_code: int | None = None
     data: dict[str, Any] | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
     error: Exception | None = None
     error_detail: dict[str, Any] | str | None = None
 
@@ -17,8 +18,18 @@ class HttpResponse(BaseModel):
         return not self.success
 
     @classmethod
-    def ok(cls, status_code: int, data: dict[str, Any]) -> Self:
-        return cls(success=True, status_code=status_code, data=data)
+    def ok(
+        cls,
+        status_code: int,
+        data: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> Self:
+        return cls(
+            success=True,
+            status_code=status_code,
+            data=data,
+            headers=headers or {},
+        )
 
     @classmethod
     def fail(
@@ -26,10 +37,12 @@ class HttpResponse(BaseModel):
         error: Exception,
         status_code: int | None = None,
         error_detail: dict[str, Any] | str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Self:
         return cls(
             success=False,
             error=error,
             status_code=status_code,
+            headers=headers or {},
             error_detail=error_detail,
         )
