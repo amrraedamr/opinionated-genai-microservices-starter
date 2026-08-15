@@ -10,5 +10,5 @@ fi
 export API_HOST=0.0.0.0
 export API_PORT=8000
 
-echo "Starting the PoC Skeleton API"
+echo "Starting the Opinionated GenAI Starter API"
 exec .venv/bin/api

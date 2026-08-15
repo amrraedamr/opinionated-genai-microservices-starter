@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "base"
 version = "0.1.0"
-description = "POC Skeleton"
-authors = ["Amr Amr <amr.amr@pwc.com>"]
+description = "Opinionated FastAPI GenAI starter"
+authors = ["Amr Amr <amr.amr2391@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

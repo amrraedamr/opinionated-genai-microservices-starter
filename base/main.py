@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application starting")
 
     capture_service = TerminalCaptureService(
-        "POC-Skeleton"
+        "opinionated-genai-starter"
     )  # TODO: Amr: Put the app name in config
     capture_service.start()
 
@@ -66,7 +66,7 @@ async def register_request(
 init_routers(
     app,
     routers=routers,
-    prefix="/api",
+    prefix="/api/v1",
 )
 
 
@@ -75,7 +75,10 @@ AppExceptionHandler().register(app)
 
 @app.get("/", tags=["Main"])
 def root():
-    return {"message": "Welcome to the POC-Skeleton API!", "version": "0.1"}
+    return {
+        "message": "Welcome to the Opinionated GenAI Starter API!",
+        "version": "0.1",
+    }
 
 
 @app.get("/health-check", tags=["Main"])
@@ -88,6 +91,6 @@ def health_check():
     dependencies=[Depends(validate_user)],
 )
 async def get_logs():
-    capture_service = TerminalCaptureService("POC-Skeleton")
+    capture_service = TerminalCaptureService("opinionated-genai-starter")
     stream_iterator = StreamIterator(source=capture_service.subscribe())
     return EventSourceResponse(stream_iterator, media_type="text/event-stream")

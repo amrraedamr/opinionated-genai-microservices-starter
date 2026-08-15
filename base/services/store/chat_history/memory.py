@@ -9,7 +9,7 @@ from base.services.store.chat_history import ChatHistoryStore
 class InMemoryChatHistoryStore(ChatHistoryStore, metaclass=SingletonABC):
     """Reference in-memory implementation of ChatHistoryStore.
 
-    Single-process, lost on restart. Suitable for tests and PoC development.
+    Single-process, lost on restart. Suitable for tests and local development.
     Production should use the SQL or Mongo concrete stores.
 
     Unlike the SQL and Mongo stores, this implementation does not assign

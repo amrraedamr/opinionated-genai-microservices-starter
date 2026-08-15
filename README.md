@@ -1,6 +1,6 @@
-# POC-Skeleton Backend
+# Opinionated GenAI Starter
 
-A production-ready Python backend skeleton built with FastAPI, featuring a layered architecture, metaclass-based dependency injection, multi-database support, and pre-wired integrations for Azure services, Redis, vector databases, and LLMs.
+A production-ready FastAPI starter with a layered architecture, metaclass-based dependency injection, multi-database support, and pre-wired integrations for Azure services, Redis, vector databases, and LLMs.
 
 ---
 
@@ -58,7 +58,6 @@ A production-ready Python backend skeleton built with FastAPI, featuring a layer
 ### Installation
 
 ```bash
-cd backend
 poetry install
 ```
 
@@ -76,7 +75,7 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 2. Create a `.env` file in the repo root with your secret values (API keys, passwords). The `.env` file is gitignored. Secret keys in `config.local.ini` use the `ENV:` prefix to resolve from environment variables (e.g., `pg_password = ENV:POSTGRES_PASSWORD`).
 3. **SQLite database path.** The shipped `config.local.ini` has `sqlite_db_path = ENV:SQLITE_DB_PATH`, so you need to:
    - Create a folder for the database file (any path, e.g. `mkdir -p database`).
-   - Add `SQLITE_DB_PATH=database/poc-skeleton.db` (or whatever path you chose) to your `.env`.
+   - Add `SQLITE_DB_PATH=database/app.db` (or whatever path you chose) to your `.env`.
    - Alembic will create the `.db` file inside that folder on the first `alembic upgrade head`. The file itself is gitignored.
 4. For other environments, edit the corresponding `config/config.{environment}.ini` file. In Docker/deployment, secrets are provided via deployment environment variables instead of a `.env` file.
 5. If using Key Vault secret loading, edit `config/config.keyvault.ini` with your tag prefixes.
@@ -290,7 +289,7 @@ poetry run alembic current
 │       └── webserver.py                  # Uvicorn/Gunicorn launcher
 │
 ├── database/
-│   └── poc-skeleton.db                   # SQLite database file
+│   └── app.db                            # SQLite database file
 ├── keys/
 │   ├── private.pem                       # RSA private key (JWT signing)
 │   └── public.pem                        # RSA public key (JWT verification)
@@ -311,14 +310,14 @@ poetry run alembic current
 ├── .env                                  # Local secrets (gitignored, loaded via dotenv)
 ├── GETTING_STARTED.md                    # Friendly intro: what it is + how to run + try it
 ├── pyproject.toml                        # Poetry project & dependencies
-└── .pre-commit-config.yaml               # Pre-commit hooks
+└── .env.example                          # Example env vars for local secrets
 ```
 
 ---
 
 ## Architecture Overview
 
-The skeleton follows a layered architecture with strict separation of concerns:
+The starter follows a layered architecture with strict separation of concerns:
 
 ```
 Routers (thin controllers)
@@ -674,7 +673,7 @@ Configuration is passed via `ModelConfigurations` (Pydantic), not from `config.i
 
 `PromptService` (`base/services/prompt/service.py`) — concrete singleton backed by `PromptLoader`.
 
-A system for managing LLM prompt templates with decorator-based registration, versioning via database, and distributed hot-reload via Redis pub/sub. The skeleton ships its own `PromptTemplate` (no LangChain dependency); it accepts both `str.format`-style string templates and structured message lists, validates declared vs detected variables at construction time, and supports `partial_variables`.
+A system for managing LLM prompt templates with decorator-based registration, versioning via database, and distributed hot-reload via Redis pub/sub. The starter ships its own `PromptTemplate` (no LangChain dependency); it accepts both `str.format`-style string templates and structured message lists, validates declared vs detected variables at construction time, and supports `partial_variables`.
 
 **Components:**
 - `PromptLoader` — singleton that holds all registered prompts in memory. Auto-discovers and imports all modules under `base/services/prompt/templates/` at startup so `@register_prompt` decorators fire automatically. Uses `InMemoryCacheService` by default (no Redis required); switch to `RedisCacheService` when a Redis instance is available. Subscribes to `PROMPT_RELOAD` pub/sub events for distributed reload from the database.
@@ -758,7 +757,7 @@ The resulting `RenderedPrompt` exposes `instructions` (system / developer blocks
 **Backing stores** live under `base/services/store/chat_history/`:
 - `ChatHistoryStore` — marker subclass of `AbstractSequenceStore[ConversationId, StoredMessage]`. Service depends on this type, not on the abstract directly.
 - `SqlChatHistoryStore` — SQLAlchemy-backed; one row per message in `chat_history_message`. Uses the `(conversation_id, sequence)` unique constraint as the correctness primitive.
-- `InMemoryChatHistoryStore` — single-process reference impl for tests / PoC dev. IDs are not auto-assigned.
+- `InMemoryChatHistoryStore` — single-process reference impl for tests / local dev. IDs are not auto-assigned.
 
 `StoredMessage` is the canonical, backend-neutral shape. SQL and Mongo (when implemented) round-trip through it; persistence timestamps stay on the DTO.
 
@@ -918,7 +917,7 @@ A trace is only populated inside a pipeline run (`debug_trace.started_at != 0`).
 
 ## Localization & Canned Messages
 
-The skeleton ships a small bilingual (English / Arabic) localization layer used by the agent error path.
+The starter ships a small bilingual (English / Arabic) localization layer used by the agent error path.
 
 - **`Locale`** (`base/models/definitions/database.py`) — `EN`, `AR`, `OTHER`. Used as a dict key in `CannedMessages` values.
 - **`get_text_locale(text, fallback_text=None, default_fallback=None)`** (`base/tools/locale.py`) — counts Latin vs. Arabic-script glyphs to pick a `Locale` for the user's input. Falls back to `default_fallback` (or `Locale.EN`) when the text contains neither (numbers / punctuation only).
@@ -1187,7 +1186,7 @@ All routers are mounted under the `/api/v1` prefix.
 
 ## Streaming (SSE)
 
-The skeleton includes full Server-Sent Events support via `sse-starlette`.
+The starter includes full Server-Sent Events support via `sse-starlette`.
 
 **Components:**
 - `StreamIterator` (`base/tools/stream.py`) — async iterator that wraps an `asyncio.Queue` or `AsyncIterator` and formats messages as SSE events
@@ -1202,7 +1201,7 @@ The skeleton includes full Server-Sent Events support via `sse-starlette`.
 
 ## Live Log Streaming
 
-The skeleton includes a built-in live log streaming system via `TerminalCaptureService`:
+The starter includes a built-in live log streaming system via `TerminalCaptureService`:
 
 1. At startup, `TeeStream` wraps `stdout`/`stderr` to capture all output
 2. Captured output is buffered and published to Redis pub/sub

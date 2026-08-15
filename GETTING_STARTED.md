@@ -8,11 +8,11 @@ For a deep architecture reference, see [`README.md`](README.md).
 
 ## What is this?
 
-**opinionated-genai-starter** is a batteries-included FastAPI template for building AI-powered proof-of-concept applications. Instead of starting every POC from scratch, you fork or copy this starter and get a consistent, production-shaped foundation: layered architecture, metaclass-based DI, multi-database support, and pre-wired integrations for everything an AI POC typically needs.
+**opinionated-genai-starter** is a batteries-included FastAPI template for building GenAI applications. Instead of wiring auth, chat, agents, and infra from scratch every time, you fork or copy this starter and get a consistent, production-shaped foundation: layered architecture, metaclass-based DI, multi-database support, and pre-wired integrations for the usual GenAI stack.
 
 It's aimed at:
 
-- **POC owners** who want a working chat / RAG / agent app in hours, not weeks.
+- **Builders** who want a working chat / RAG / agent app in hours, not weeks.
 - **Engineers** who want to swap one piece (say, the LLM provider, the SQL backend, or the vector DB) without rewiring the rest of the stack.
 - **Reviewers** who want to read predictable code: routers stay thin, services own logic, stores own persistence, and abstractions only exist where multiple backends actually exist.
 
@@ -48,8 +48,6 @@ It's aimed at:
 ## Setup in 5 steps
 
 ```bash
-cd backend
-
 # 1. Install dependencies
 poetry install
 
@@ -64,7 +62,7 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 #    - Create `.env` with secret values referenced as `ENV:VAR_NAME` in the .ini file
 #      (e.g., the OpenAI / Azure OpenAI API key the LLM service expects). The shipped
 #      `config.local.ini` reads `sqlite_db_path = ENV:SQLITE_DB_PATH`, so add a line like
-#      `SQLITE_DB_PATH=database/poc-skeleton.db` to your `.env`.
+#      `SQLITE_DB_PATH=database/app.db` to your `.env`.
 
 # 4. Apply database migrations
 #    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).
