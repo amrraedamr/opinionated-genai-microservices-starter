@@ -2,12 +2,12 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
 from base import routers
-from base.services.auth.dependencies import validate_user
+from base.services.auth.dependencies import validate_user_dependency
 from base.services.common.meta import Stored, scope_id
 from base.services.configuration import settings
 from base.services.logging.console import ConsoleLoggerService
@@ -87,7 +87,7 @@ def health_check():
 
 @app.post(
     "/logs",
-    dependencies=[Depends(validate_user)],
+    dependencies=[validate_user_dependency],
 )
 async def get_logs():
     capture_service = TerminalCaptureService(settings.app_name)

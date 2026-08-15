@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from base.models.orm.user import UserDTO
 from base.models.view_models import BaseResponse
@@ -8,7 +8,7 @@ from base.models.view_models.user import (
     EditUserResponse,
     GetUserResponse,
 )
-from base.services.auth.dependencies import validate_user
+from base.services.auth.dependencies import validate_user_dependency
 from base.services.store.user import UserStore
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.get("/me", response_model=BaseResponse[GetUserResponse])
 async def get_user(
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[GetUserResponse]:
     return BaseResponse(
         data=GetUserResponse(
@@ -31,7 +31,7 @@ async def get_user(
 @router.patch("/me", response_model=BaseResponse[EditUserResponse])
 async def edit_user(
     request: EditUserRequest,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[EditUserResponse]:
     current_user.update_from_dict(
         request.serialize(exclude_unset=True, exclude_none=True, by_alias=False)
@@ -42,7 +42,7 @@ async def edit_user(
 
 @router.delete("/me", response_model=BaseResponse[DeleteUserResponse])
 async def delete_user(
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[DeleteUserResponse]:
     await UserStore().adelete(current_user.id)
     return BaseResponse(data=DeleteUserResponse())

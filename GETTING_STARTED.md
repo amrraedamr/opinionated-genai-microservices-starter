@@ -148,16 +148,16 @@ Drop a file in `base/routers/`, define a `router` named export, and the auto-dis
 
 ```python
 # base/routers/items.py
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from base.models.orm.user import UserDTO
-from base.services.auth.dependencies import validate_user
+from base.services.auth.dependencies import validate_user_dependency
 
 router = APIRouter(prefix="/items", tags=["Items"])
 
 
 @router.get("")
-async def list_items(current_user: UserDTO = Depends(validate_user)) -> list[str]:
+async def list_items(current_user: UserDTO = validate_user_dependency) -> list[str]:
     return ["one", "two", "three"]
 ```
 

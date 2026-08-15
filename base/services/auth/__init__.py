@@ -2,7 +2,6 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials
 from jwt import (
     DecodeError,
@@ -19,7 +18,6 @@ from base.models.view_models.auth import (
     RefreshToken,
     TokenPair,
 )
-from base.services.auth.auths import http_bearer
 from base.services.common.meta import Singleton
 from base.services.configuration import settings
 from base.services.store.user import UserStore
@@ -53,7 +51,7 @@ class AuthService(metaclass=Singleton):
 
     async def validate_user(
         self,
-        credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+        credentials: HTTPAuthorizationCredentials,
     ) -> UserDTO:
         payload = self._decode_token(
             AccessToken(credentials.credentials), expected_type="access"

@@ -194,7 +194,7 @@ poetry run alembic current
 │   │   ├── auth/
 │   │   │   ├── __init__.py               # AuthService — JWT token management
 │   │   │   ├── auths.py                  # HTTPBearer scheme
-│   │   │   └── dependencies.py           # validate_user FastAPI dependency
+│   │   │   └── dependencies.py           # validate_user / validate_user_dependency
 │   │   ├── background_tasks/
 │   │   │   ├── __init__.py               # AbstractBackgroundTaskService, RegisteredTask
 │   │   │   └── in_memory.py              # InMemoryBackgroundTaskService
@@ -920,12 +920,12 @@ JWT-based authentication with RS256 (RSA asymmetric keys).
 **Components:**
 - `AuthService` (`base/services/auth/__init__.py`) — token generation, refresh, and validation
 - `PasswordHashingService` (`base/tools/security.py`) — Argon2 password hashing
-- `validate_user` dependency (`base/services/auth/dependencies.py`) — FastAPI `Depends()` for route protection
+- `validate_user` / `validate_user_dependency` (`base/services/auth/dependencies.py`) — route protection via module-level `Depends` singletons
 
 **Token flow:**
 1. Register: hash password, create user in DB
 2. Login: verify password, generate access + refresh token pair
-3. Protected routes: `Depends(validate_user)` validates access token, returns `UserDTO`
+3. Protected routes: `validate_user_dependency` validates access token, returns `UserDTO`
 4. Refresh: validate refresh token, generate new token pair
 
 **Token types:** `AccessToken` and `RefreshToken` are `NewType` wrappers around `str` for type safety.

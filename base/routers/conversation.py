@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sse_starlette import EventSourceResponse
 
 from base.models.definitions.errors import DatabaseErrors
@@ -26,7 +26,7 @@ from base.models.view_models.conversation import (
 from base.models.view_models.execution_context import FlowVariables
 from base.models.view_models.streams import StreamError
 from base.services.agents.test import TestAgent
-from base.services.auth.dependencies import validate_user
+from base.services.auth.dependencies import validate_user_dependency
 from base.services.background_tasks.in_memory import InMemoryBackgroundTaskService
 from base.services.chat_history import ChatHistoryService
 from base.services.execution_context import ExecutionContext
@@ -43,7 +43,7 @@ router = APIRouter(prefix="/conversations", tags=["Conversations"])
 @router.post("", response_model=BaseResponse[CreateConversationResponse])
 async def create_conversation(
     request: CreateConversationRequest,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[CreateConversationResponse]:
     created = await ConversationStore().acreate_for_user(current_user.id, request)
     return BaseResponse(data=CreateConversationResponse(conversation_id=created.id))
@@ -52,7 +52,7 @@ async def create_conversation(
 @router.get("/{conversation_id}", response_model=BaseResponse[GetConversationResponse])
 async def get_conversation(
     conversation_id: UUID,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[GetConversationResponse]:
     conversation = await ConversationStore().aget_for_user(
         current_user.id, conversation_id
@@ -78,7 +78,7 @@ async def get_conversation(
 async def edit_conversation(
     conversation_id: UUID,
     request: EditConversationRequest,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[EditConversationResponse]:
     updated = await ConversationStore().aedit_for_user(
         current_user.id,
@@ -96,7 +96,7 @@ async def edit_conversation(
 )
 async def delete_conversation(
     conversation_id: UUID,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[DeleteConversationResponse]:
     deleted = await ConversationStore().adelete_for_user(
         current_user.id, conversation_id
@@ -114,7 +114,7 @@ async def send_message(
     conversation_id: UUID,
     request: SendChatRequest,
     streaming: bool = False,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[SendChatResponse] | EventSourceResponse:
     execution_context = ExecutionContext()
     execution_context.start_debug_trace()
@@ -183,7 +183,7 @@ async def send_message(
 )
 async def get_messages(
     conversation_id: UUID,
-    current_user: UserDTO = Depends(validate_user),
+    current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[ListChatResponse]:
     conversation = await ConversationStore().aget_for_user(
         current_user.id, conversation_id
