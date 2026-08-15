@@ -57,9 +57,7 @@ def run_gunicorn(host: str = "0.0.0.0", port: int = 8000):
 
     options = {
         "bind": f"{host}:{port}",
-        "workers": min(
-            multiprocessing.cpu_count() + 1, settings.max_gunicorn_workers
-        ),
+        "workers": min(multiprocessing.cpu_count() + 1, settings.max_gunicorn_workers),
         "worker_class": "uvicorn.workers.UvicornWorker",
         "preload": True,
         "timeout": 500,

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Self
+from collections.abc import Awaitable, Callable
+from typing import Any, Self
 from uuid import UUID
 
 from base.models.definitions.background_tasks import TaskStatus

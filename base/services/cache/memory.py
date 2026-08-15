@@ -4,8 +4,9 @@ import json
 import threading
 import time
 from collections import defaultdict
+from collections.abc import AsyncGenerator
 from json import JSONDecodeError
-from typing import Any, AsyncGenerator, ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from base.models.definitions.cache import CacheChannels, CacheKeys
@@ -19,7 +20,7 @@ from base.tools.serializers import serialize
 class _TTLEntry:
     """A cache entry with optional TTL tracking."""
 
-    __slots__ = ("value", "expires_at")
+    __slots__ = ("expires_at", "value")
 
     def __init__(self, value: Any, ttl_seconds: int | None = None) -> None:
         self.value: Any = value

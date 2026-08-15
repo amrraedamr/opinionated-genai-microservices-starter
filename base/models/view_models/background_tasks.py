@@ -13,4 +13,4 @@ class TaskHandle(BaseModel, Generic[T]):
     name: str | None = None
     backend: BackgroundTaskBackend
     created_at: datetime
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] | None = None

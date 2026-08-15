@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable
 from datetime import datetime
 from json import JSONDecoder
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
@@ -71,7 +71,7 @@ def decode_type(class_path: str) -> type:
 
 
 class ExpansiveDecoder(JSONDecoder):
-    _decoders: dict[str, Callable] = {
+    _decoders: ClassVar[dict[str, Callable]] = {
         "datetime": decode_datetime,
         "dto": decode_class_by_depopulation,
         "app_model": decode_class_by_depopulation,

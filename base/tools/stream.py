@@ -1,6 +1,7 @@
 import asyncio
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 from uuid import uuid4
 
 from base.models.view_models.streams import (
@@ -46,9 +47,8 @@ class StreamIterator:
         else:
             raise RuntimeError("StreamIterator must have either a source or a queue")
 
-        if isinstance(message, StreamModel):
-            if not message.id:
-                message.id = str(uuid4())
+        if isinstance(message, StreamModel) and not message.id:
+            message.id = str(uuid4())
 
         if isinstance(message, StreamError | StreamEnd):
             self._end = True

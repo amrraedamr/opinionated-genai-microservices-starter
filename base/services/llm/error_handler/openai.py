@@ -1,7 +1,8 @@
 import asyncio
 import random
 import time
-from typing import Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from openai import (
     APIConnectionError,

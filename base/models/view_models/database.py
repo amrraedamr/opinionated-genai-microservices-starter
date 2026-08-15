@@ -1,8 +1,7 @@
 from datetime import UTC, datetime
-from typing import Generic, TypeVar
+from typing import Annotated, Generic, TypeVar
 
 from pydantic import Field
-from typing_extensions import Annotated
 
 from base.models.definitions.database import SortingOrder
 from base.models.view_models import BaseModel

@@ -2,7 +2,8 @@ import asyncio
 import logging
 import sys
 from collections import deque
-from typing import AsyncGenerator, TextIO
+from collections.abc import AsyncGenerator
+from typing import TextIO
 
 from base.models.definitions.cache import CacheChannels
 from base.services.cache.memory import InMemoryCacheService
@@ -36,8 +37,8 @@ class TeeStream:
             batch.append(self._buffer.popleft())
         try:
             await self._cache_service.apublish_batch(self._channel, batch)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.exception("Failed to publish logs to cache: %s", e)
 
     def write(self, text: str) -> int:
         if text and text.strip():

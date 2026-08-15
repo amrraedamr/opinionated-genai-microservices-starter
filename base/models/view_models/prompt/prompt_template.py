@@ -191,7 +191,7 @@ class MessagesPlaceholder(BasePromptTemplateItem):
             return role, entry.get("content"), entry.get("tool_call_id")
 
         # Pydantic / dataclass / object with .role / .content attributes.
-        role_value = getattr(entry, "role")
+        role_value = entry.role
         role = (
             role_value
             if isinstance(role_value, MessageRole)

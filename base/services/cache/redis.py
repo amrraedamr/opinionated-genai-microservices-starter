@@ -1,7 +1,8 @@
 import inspect
 import json
+from collections.abc import AsyncGenerator
 from json import JSONDecodeError
-from typing import Any, AsyncGenerator, ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from base.clients.redis import RedisClient

@@ -1,11 +1,11 @@
 import asyncio
 from collections.abc import AsyncIterator, Iterator
-from typing import Any
 
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from azure.keyvault.secrets import SecretClient, SecretProperties
 from azure.keyvault.secrets.aio import SecretClient as AsyncSecretClient
+from typing_extensions import Self
 
 from base.services.common.meta import Singleton
 from base.services.configuration import settings
@@ -73,16 +73,16 @@ class AzureKeyVaultService(metaclass=Singleton):
             await self._async_credential.close()
             self._async_credential = None
 
-    def __enter__(self) -> "AzureKeyVaultService":
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         self.close()
 
-    async def __aenter__(self) -> "AzureKeyVaultService":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.aclose()
 
     # Secret operations
@@ -116,9 +116,9 @@ class AzureKeyVaultService(metaclass=Singleton):
         if format_name:
             secret_key = self.format_secret_name(secret_key)
         secret = self.client.set_secret(secret_key, secret_value)
-        assert (
-            secret.properties.version is not None
-        ), "Azure returned no version after upsert"
+        assert secret.properties.version is not None, (
+            "Azure returned no version after upsert"
+        )
         return secret.properties.version
 
     async def aupsert_secret(
@@ -127,9 +127,9 @@ class AzureKeyVaultService(metaclass=Singleton):
         if format_name:
             secret_key = self.format_secret_name(secret_key)
         secret = await self.async_client.set_secret(secret_key, secret_value)
-        assert (
-            secret.properties.version is not None
-        ), "Azure returned no version after upsert"
+        assert secret.properties.version is not None, (
+            "Azure returned no version after upsert"
+        )
         return secret.properties.version
 
     def remove_secret(self, secret_name: str) -> None:

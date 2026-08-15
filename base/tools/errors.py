@@ -1,11 +1,6 @@
 from enum import Enum
 from typing import Never
 
-# from starlette import status
-# from starlette.responses import JSONResponse
-
-# from base.models.view_models import ErrorResponse
-
 
 class ErrorsException(Exception):
     def __init__(
@@ -27,8 +22,6 @@ class ErrorsException(Exception):
 class StateDecodeError(ValueError):
     """Raised when the encoded state is invalid, tampered, or cannot be decoded."""
 
-    pass
-
 
 def raise_error(
     error: Enum | None = None,
@@ -39,13 +32,3 @@ def raise_error(
         raise ErrorsException(error_enum=error)
 
     raise ErrorsException(message=message, status_code=status_code)
-
-
-# def error_response(
-#     error: str,
-#     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-# ) -> JSONResponse:
-#     return JSONResponse(
-#         content=ErrorResponse(success=False, error=error).serialize(),
-#         status_code=status_code,
-#     )

@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Awaitable, Callable, Coroutine
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, ClassVar, Coroutine, Self
+from typing import Any, ClassVar, Self
 from uuid import UUID, uuid4
 
 from base.models.definitions.background_tasks import (

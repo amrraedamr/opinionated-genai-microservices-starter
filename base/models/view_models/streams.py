@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Generic, Literal, TypeVar, Union
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import Field
 
@@ -41,6 +41,6 @@ class StreamError(StreamModel):
 
 
 AnyStreamMessage = Annotated[
-    Union[StreamStart, StreamMessage[Any], StreamProgress, StreamEnd, StreamError],
+    StreamStart | StreamMessage[Any] | StreamProgress | StreamEnd | StreamError,
     Field(discriminator="message_type"),
 ]

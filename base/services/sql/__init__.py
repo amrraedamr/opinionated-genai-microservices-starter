@@ -1,7 +1,8 @@
 import math
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import asc, desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession

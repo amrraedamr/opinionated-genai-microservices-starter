@@ -5,9 +5,10 @@ import re
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Generator
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generator
+from typing import Any
 from uuid import UUID
 
 

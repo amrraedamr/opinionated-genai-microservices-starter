@@ -5,7 +5,7 @@ from typing import Any
 class LazyLogMessage:
     """Defers string formatting until __str__ is called."""
 
-    __slots__ = ("_fmt", "_args")
+    __slots__ = ("_args", "_fmt")
 
     def __init__(self, fmt: str, *args: Any) -> None:
         self._fmt: str = fmt
@@ -29,7 +29,9 @@ class LogMessage:
             "status": self.status,
             "tags": tags,
             "message": self.message,
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.datetime.now(datetime.UTC).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
             "duration": self.duration,
         }
 
