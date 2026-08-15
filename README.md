@@ -877,7 +877,7 @@ The debug trace is the per-request observability bundle on `ExecutionContext.deb
 - `FlowEvent` — one pipeline-level breadcrumb: `elapsed_ms`, `stage`, `detail`. Use `ExecutionContext.record_event("identify_path", chosen=…)` to leave them.
 - `DebugTrace` — `started_at` + `calls` + `events`. Persisted to `chat_history_message.metadata["debug"]` when the conversation router writes the assistant turn (see [`base/routers/conversation.py`](base/routers/conversation.py)).
 
-A trace is only populated inside a pipeline run (`debug_trace.started_at != 0`). Outside of one (legacy endpoints, admin routes), `OpenAIService` still logs a one-liner per call but skips the trace appendage.
+A trace is only populated inside a pipeline run (`debug_trace.started_at != 0`). Outside of one (standalone LLM calls, admin routes), `OpenAIService` still logs a one-liner per call but skips the trace appendage.
 
 ---
 
@@ -1109,7 +1109,7 @@ Located in `base/models/definitions/`.
 
 Routers are auto-discovered from the `base/routers/` package using `pkgutil.iter_modules`. Each module must export a `router` variable (`APIRouter` instance).
 
-All routers are mounted under the `/api/v1` prefix.
+All routers are mounted under the `/api/7r` prefix.
 
 **Included routers:**
 
@@ -1203,7 +1203,7 @@ Gunicorn is configured with:
 | GET | `/health-check` | No | Health check |
 | POST | `/logs` | Yes | Live SSE log stream |
 
-### Auth (`/api/v1/auth`)
+### Auth (`/api/7r/auth`)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -1211,7 +1211,7 @@ Gunicorn is configured with:
 | POST | `/login` | No | Login, get token pair |
 | POST | `/refresh` | No | Refresh token pair |
 
-### Users (`/api/v1/users`)
+### Users (`/api/7r/users`)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -1219,7 +1219,7 @@ Gunicorn is configured with:
 | PATCH | `/me` | Yes | Edit current user profile |
 | DELETE | `/me` | Yes | Soft-delete current user |
 
-### Conversations (`/api/v1/conversations`)
+### Conversations (`/api/7r/conversations`)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|

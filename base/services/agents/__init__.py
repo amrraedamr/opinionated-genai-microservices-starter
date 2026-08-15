@@ -16,7 +16,7 @@ from base.services.prompt.service import PromptService
 
 
 class AbstractAgent(metaclass=SingletonABC):
-    """Template-method base for every LLM agent in the patient-QA flow.
+    """Template-method base for every LLM agent in a chat / pipeline turn.
 
     All three hooks are async and take no arguments — agents read from
     and write to the shared :class:`ExecutionContext.flow_variables`.
@@ -31,8 +31,8 @@ class AbstractAgent(metaclass=SingletonABC):
     call). Concrete agents pass ``label=...`` to the LLM service so the
     captured :class:`DebugCall` carries a meaningful identifier — by
     convention ``label=type(self).__name__`` for single-shot agents and
-    ``label=f"{type(self).__name__}:{patient_id}"`` for per-patient
-    fanout calls.
+    ``label=f"{type(self).__name__}:{item_id}"`` when fanout calls need
+    a stable per-item discriminator.
     """
 
     PROMPT_KEY: ClassVar[str] = ""

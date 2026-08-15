@@ -850,9 +850,8 @@ class OpenAIService(metaclass=KeyedSingleton):
         :class:`ExecutionContext.debug_trace` AND log a one-liner.
 
         The trace is only populated when the request is inside a
-        patient-QA pipeline run (signalled by
-        ``ctx.debug_trace.started_at != 0``). Outside the pipeline
-        (e.g. the legacy ``send_message`` route or admin endpoints)
+        pipeline run (signalled by ``ctx.debug_trace.started_at != 0``).
+        Outside a pipeline (e.g. standalone LLM calls or admin routes)
         we still log but skip the trace appendage.
         """
         input_tokens, output_tokens, total_tokens = self._extract_token_counts(usage)

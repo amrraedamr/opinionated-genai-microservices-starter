@@ -9,7 +9,7 @@ from base.tools.stream import StreamIterator
 
 class ExecutionContext(metaclass=Stored):
     """Per-request data container shared by every agent and service in
-    the patient-QA flow.
+    a chat / pipeline turn.
 
     One instance per ``scope_id`` (set by the ``register_request``
     middleware in :mod:`base.main`). The middleware also tears the
@@ -41,9 +41,9 @@ class ExecutionContext(metaclass=Stored):
         return self.flow_variables
 
     def start_debug_trace(self) -> None:
-        """Stamp the trace's start time. Called once at the top of
-        ``PatientQAPipeline.arun`` so subsequent ``record_event`` calls
-        can compute monotonic ``elapsed_ms``."""
+        """Stamp the trace's start time. Call once at the start of a
+        pipeline / agent turn so subsequent ``record_event`` calls can
+        compute monotonic ``elapsed_ms``."""
         self.debug_trace.started_at = time.perf_counter()
 
     def record_event(self, stage: str, **detail: Any) -> FlowEvent:

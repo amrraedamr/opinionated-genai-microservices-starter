@@ -11,9 +11,10 @@ from base.models.view_models.llm_exception import (
 
 
 class CannedMessages(Enum):
-    """User-facing strings used as the patient-QA answer when the flow
-    aborts. Each value maps :class:`Locale` directly to its localized
-    text. Access via ``CannedMessages.X.value[locale]``.
+    """User-facing strings used as the answer when a flow aborts.
+
+    Each value maps :class:`Locale` directly to its localized text.
+    Access via ``CannedMessages.X.value[locale]``.
 
     Python 3.12+ allows non-hashable enum values via ``EnumType``'s
     ``_unhashable_values_`` fallback; we never call
