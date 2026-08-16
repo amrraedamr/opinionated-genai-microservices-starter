@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from base.models.definitions.errors import AuthErrors
 from base.models.orm.user import UserDTO
 from base.models.view_models import BaseResponse
 from base.models.view_models.user import (
@@ -10,6 +11,8 @@ from base.models.view_models.user import (
 )
 from base.services.auth.dependencies import validate_user_dependency
 from base.services.store.user import UserStore
+from base.tools.errors import raise_error
+from base.tools.security import PasswordHashingService
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -33,9 +36,24 @@ async def edit_user(
     request: EditUserRequest,
     current_user: UserDTO = validate_user_dependency,
 ) -> BaseResponse[EditUserResponse]:
-    current_user.update_from_dict(
-        request.serialize(exclude_unset=True, exclude_none=True, by_alias=False)
+    updates = request.serialize(
+        exclude_unset=True,
+        exclude_none=True,
+        by_alias=False,
+        exclude={"current_password", "new_password"},
     )
+    current_user.update_from_dict(updates)
+
+    if request.new_password is not None:
+        assert request.current_password is not None
+        if not current_user.password_hash:
+            raise_error(AuthErrors.PASSWORD_NOT_SET)
+        if not PasswordHashingService.verify(
+            request.current_password, current_user.password_hash
+        ):
+            raise_error(AuthErrors.USER_UNAUTHORIZED)
+        current_user.password_hash = PasswordHashingService.hash(request.new_password)
+
     await UserStore().aedit(current_user.id, current_user)
     return BaseResponse(data=EditUserResponse())
 

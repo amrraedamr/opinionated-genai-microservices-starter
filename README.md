@@ -1245,7 +1245,7 @@ Gunicorn is configured with:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/me` | Yes | Get current user profile |
-| PATCH | `/me` | Yes | Edit current user profile |
+| PATCH | `/me` | Yes | Edit profile and/or change password (`currentPassword` + `newPassword`) |
 | DELETE | `/me` | Yes | Soft-delete current user |
 
 ### Conversations (`/api/7r/conversations`)

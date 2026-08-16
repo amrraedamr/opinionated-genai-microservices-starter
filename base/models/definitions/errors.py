@@ -24,6 +24,10 @@ class AuthErrors(Enum):
         "message": "Token incomplete.",
         "status_code": status.HTTP_401_UNAUTHORIZED,
     }
+    PASSWORD_NOT_SET = {
+        "message": "Password login is not enabled for this account.",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
     OAUTH_PROVIDER_DISABLED = {
         "message": "OAuth provider is not configured.",
         "status_code": status.HTTP_400_BAD_REQUEST,
