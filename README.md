@@ -155,10 +155,11 @@ poetry run alembic current
 │   │   │   ├── chat_history_message.py   # ChatHistoryMessageDTO model
 │   │   │   ├── conversation.py           # ConversationDTO model
 │   │   │   ├── prompt.py                 # PromptDTO, ActivePromptDTO models
-│   │   │   └── user.py                   # UserDTO model
+│   │   │   ├── user.py                   # UserDTO model (password optional for social)
+│   │   │   └── user_identity.py          # UserIdentityDTO — (provider, subject) → user
 │   │   └── view_models/                  # Pydantic request/response models
 │   │       ├── __init__.py               # BaseModel, BaseResponse, ErrorResponse, DebugContext
-│   │       ├── auth.py                   # Auth request/response models, token types
+│   │       ├── auth.py                   # Auth + OAuth request/response models, token types
 │   │       ├── background_tasks.py       # TaskHandle
 │   │       ├── chat.py                   # SendChatRequest/Response, ChatMessageView, ListChatResponse
 │   │       ├── chat_history.py           # StoredMessage, StoredToolCall, ConversationId, ChatHistoryConfig
@@ -259,7 +260,8 @@ poetry run alembic current
 │   │   │   │   ├── memory.py             # InMemoryChatHistoryStore (for tests)
 │   │   │   │   └── sql.py                # SqlChatHistoryStore
 │   │   │   ├── conversation.py           # ConversationStore (with *_for_user variants)
-│   │   │   └── user.py                   # UserStore implementation
+│   │   │   ├── user.py                   # UserStore implementation
+│   │   │   └── user_identity.py          # UserIdentityStore (provider + subject lookup)
 │   │   ├── text_embedding/
 │   │   │   ├── __init__.py
 │   │   │   └── openai_embedding.py       # OpenAITextEmbeddingService (concrete keyed singleton)
@@ -1042,7 +1044,8 @@ Located in `base/models/orm/`.
 
 - `Base` — `MappedAsDataclass + DeclarativeBase` with `to_dict()`, `update_from_dict()`, `clone()` helpers
 - `TimestampMixin` — adds `created_at`, `updated_at`, `deleted_at` with `soft_delete()` and `restore()` methods
-- `UserDTO` — example user model with UUID primary key, email, password hash, name fields, and indexes
+- `UserDTO` — user model with UUID primary key, email, nullable `password_hash` (null for social-only), name fields, and indexes
+- `UserIdentityDTO` — links external `(provider, subject)` to `user.id` (unique per provider+subject)
 - `PromptDTO` — versioned prompt template storage with key + version unique constraint
 - `ActivePromptDTO` — tracks the currently active prompt version per key (FK to `PromptDTO`)
 - `ConversationDTO` — chat conversation owned by a user (UUID PK, `user_id` FK, `title`, `meta` JSON, soft-delete + indexes on `user_id` and `created_at`)
@@ -1104,6 +1107,7 @@ Located in `base/models/view_models/`.
 
 **Auth & users:**
 - `RegisterRequest`, `LoginRequest/Response`, `RefreshRequest/Response`, `TokenPair`
+- `OAuthExchangeRequest`, `OAuthProvidersResponse`
 - `GetUserResponse`, `EditUserRequest/Response`, `CreateUserResponse`, `DeleteUserResponse`
 
 ### Definitions (Enums, Constants)
@@ -1112,7 +1116,7 @@ Located in `base/models/definitions/`.
 
 - `AuthErrors`, `DatabaseErrors`, `GenericErrors` — error enums with message and status code
 - `SQLBackend` — SQL backend enum (`sqlite`, `mysql`, `postgresql`) with `sync_driver`/`async_driver` properties
-- `DatabaseTable` — table name constants (`user`, `prompt`, `active_prompt`, `conversation`, `chat_history_message`)
+- `DatabaseTable` — table name constants (`user`, `user_identity`, `prompt`, `active_prompt`, `conversation`, `chat_history_message`)
 - `Locale` — `EN`, `AR`, `OTHER` (text locale, used by `CannedMessages` and `get_text_locale`)
 - `SortingOrder` — `ASC`, `DESC`
 - `CacheChannels` — Redis pub/sub channel names (`test`, `keyvault_reload`, `logs`, `prompt_reload`)
@@ -1134,7 +1138,7 @@ All routers are mounted under the `/api/7r` prefix.
 
 **Included routers:**
 
-- `auth.py` — `/auth` register, login, refresh
+- `auth.py` — `/auth` register, login, refresh, oauth providers/start/callback/exchange
 - `user.py` — `/users/me` get, edit, soft-delete
 - `conversation.py` — `/conversations` create, get, edit, delete; `/conversations/{id}/messages` send (optionally streaming) + list
 
@@ -1228,9 +1232,13 @@ Gunicorn is configured with:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/register` | No | Create user account |
-| POST | `/login` | No | Login, get token pair |
-| POST | `/refresh` | No | Refresh token pair |
+| POST | `/register` | No | Create password user account |
+| POST | `/login` | No | Password login, get token pair |
+| POST | `/refresh` | No | Refresh local token pair |
+| GET | `/oauth/providers` | No | List enabled OAuth providers |
+| GET | `/oauth/{provider}` | No | Start Login-with-X (302 to provider) |
+| GET\|POST | `/oauth/{provider}/callback` | No | OAuth callback (Apple uses POST/`form_post`) |
+| POST | `/oauth/exchange` | No | Trade short-lived `code` for local token pair |
 
 ### Users (`/api/7r/users`)
 
@@ -1263,7 +1271,7 @@ Gunicorn is configured with:
 | **Framework** | FastAPI + Uvicorn (standard) + Gunicorn |
 | **ORM** | SQLAlchemy 2.x (async + sync) |
 | **Validation** | Pydantic v2, pydantic-settings |
-| **Auth** | PyJWT (RS256), Argon2 |
+| **Auth** | PyJWT (RS256), Argon2, OAuth/OIDC Login-with-X, optional IdP JWKS |
 | **HTTP Client** | httpx (HTTP/2), requests, aiohttp |
 | **Databases** | SQLite, MySQL, PostgreSQL, MongoDB, Azure Cosmos DB |
 | **Cache** | Redis (pub/sub, caching, lists) |

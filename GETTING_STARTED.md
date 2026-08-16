@@ -20,7 +20,7 @@ It's aimed at:
 
 ## What you get out of the box
 
-- **Auth** — JWT (RS256) with access + refresh tokens, Argon2 password hashing, optional Login-with-X (Google/Facebook/Microsoft/GitHub), optional enterprise IdP Bearer validation, and an `Authorization: Bearer …` dependency you can drop on any route.
+- **Auth** — JWT (RS256) with access + refresh tokens, Argon2 password hashing, optional Login-with-X (Google/Facebook/Microsoft/GitHub/Apple), optional enterprise IdP Bearer validation, and an `Authorization: Bearer …` dependency you can drop on any route.
 - **Conversations + chat history** — full conversation CRUD, canonical message storage with token counting, monotonic per-conversation sequencing, tool-call pair repair, visibility filtering.
 - **Agents framework** — `AbstractAgent` template-method base; concrete agents read / write a per-request `ExecutionContext` and pipe streamed output through `StreamIterator`.
 - **LLM via OpenAI SDK** — both the Chat Completions and the Responses API, sync + async, streaming + non-streaming, structured-output `parse_*` variants, automatic retries with jittered backoff and `Retry-After` support, Azure OpenAI content-filter detection on both pre-flight 400 responses and incomplete responses, and a typed `LLMError` hierarchy so callers never see raw SDK exceptions.
@@ -62,6 +62,10 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 #    - `mkdir -p database` (SQLite file path defaults to `database/app.db`).
 #    - Set LLM keys (e.g. `OPENAI_LLM_API_KEY` or Azure OpenAI vars) when you
 #      hit chat / embeddings endpoints.
+#    - Optional Login-with-X: set OAUTH_PROVIDERS=google,apple,… plus each
+#      provider’s client id/secret (Apple: TEAM_ID + KEY_ID + .p8). Optional
+#      enterprise IdP Bearer: IDP_RESOURCE_SERVER_ENABLED + IDP_ISSUER/AUDIENCE/JWKS.
+#      See README.md#authentication.
 
 # 4. Apply database migrations
 #    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).
@@ -251,6 +255,7 @@ Call it from a router with `await GreeterAgent().arun()` after populating the `E
 ## Where to go next
 
 - [`README.md`](README.md) — full architecture reference: DI metaclass system, every service, store layer, models, error handling, debug trace, etc.
-- [`README.md#api-endpoints`](README.md#api-endpoints) — endpoint matrix for auth, users, and conversations.
+- [`README.md#authentication`](README.md#authentication) — password auth, Login-with-X (incl. Apple), and enterprise IdP resource-server mode.
+- [`README.md#api-endpoints`](README.md#api-endpoints) — endpoint matrix for auth (incl. OAuth), users, and conversations.
 - [`README.md#agents-abstractagent`](README.md#agents-abstractagent) — the agent template-method pattern in detail.
 - [`README.md#llm-openai`](README.md#llm-openai) — both API surfaces, the `LLMError` hierarchy, retry / content-filter behaviour, and `OpenAIMessageAdapter`.
