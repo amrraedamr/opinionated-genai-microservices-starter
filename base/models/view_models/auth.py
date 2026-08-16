@@ -42,3 +42,11 @@ class RefreshResponse(BaseModel):
 class TokenPair(BaseModel):
     access_token: AccessToken
     refresh_token: RefreshToken
+
+
+class OAuthExchangeRequest(BaseModel):
+    code: str
+
+
+class OAuthProvidersResponse(BaseModel):
+    providers: list[str]

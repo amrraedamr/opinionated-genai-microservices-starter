@@ -25,7 +25,7 @@ class UserDTO(TimestampMixin, Base):
     )
 
     email: Mapped[str] = mapped_column(String(255), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str | None] = mapped_column(String(255), default=None)
 
     first_name: Mapped[str | None] = mapped_column(String(50), default=None)
     last_name: Mapped[str | None] = mapped_column(String(50), default=None)

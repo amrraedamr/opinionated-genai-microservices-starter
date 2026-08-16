@@ -20,7 +20,7 @@ It's aimed at:
 
 ## What you get out of the box
 
-- **Auth** — JWT (RS256) with access + refresh tokens, Argon2 password hashing, an `Authorization: Bearer …` dependency you can drop on any route.
+- **Auth** — JWT (RS256) with access + refresh tokens, Argon2 password hashing, optional Login-with-X (Google/Facebook/Microsoft/GitHub), optional enterprise IdP Bearer validation, and an `Authorization: Bearer …` dependency you can drop on any route.
 - **Conversations + chat history** — full conversation CRUD, canonical message storage with token counting, monotonic per-conversation sequencing, tool-call pair repair, visibility filtering.
 - **Agents framework** — `AbstractAgent` template-method base; concrete agents read / write a per-request `ExecutionContext` and pipe streamed output through `StreamIterator`.
 - **LLM via OpenAI SDK** — both the Chat Completions and the Responses API, sync + async, streaming + non-streaming, structured-output `parse_*` variants, automatic retries with jittered backoff and `Retry-After` support, Azure OpenAI content-filter detection on both pre-flight 400 responses and incomplete responses, and a typed `LLMError` hierarchy so callers never see raw SDK exceptions.

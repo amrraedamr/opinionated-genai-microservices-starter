@@ -182,7 +182,7 @@ poetry run alembic current
 │   │       └── vector_search.py          # Vector search result models
 │   │
 │   ├── routers/                          # FastAPI routers (auto-discovered)
-│   │   ├── auth.py                       # /auth — register, login, refresh
+│   │   ├── auth.py                       # /auth — register, login, refresh, oauth
 │   │   ├── conversation.py               # /conversations — CRUD + chat send/list
 │   │   └── user.py                       # /users — get/edit/delete me
 │   │
@@ -192,9 +192,12 @@ poetry run alembic current
 │   │   │   ├── __init__.py               # AbstractAgent template-method base
 │   │   │   └── test.py                   # TestAgent example
 │   │   ├── auth/
-│   │   │   ├── __init__.py               # AuthService — JWT token management
+│   │   │   ├── __init__.py               # AuthService — JWT + optional IdP Bearer
 │   │   │   ├── auths.py                  # HTTPBearer scheme
-│   │   │   └── dependencies.py           # validate_user / validate_user_dependency
+│   │   │   ├── dependencies.py           # validate_user / validate_user_dependency
+│   │   │   └── oauth/                    # Login-with-X (OIDC/OAuth providers)
+│   │   │       ├── __init__.py           # OAuthService
+│   │   │       └── providers.py          # Provider registry + profile fetch
 │   │   ├── background_tasks/
 │   │   │   ├── __init__.py               # AbstractBackgroundTaskService, RegisteredTask
 │   │   │   └── in_memory.py              # InMemoryBackgroundTaskService
@@ -360,6 +363,8 @@ Full list + comments: [`.env.example`](.env.example). Highlights:
 | `ENVIRONMENT` | `local` | Webserver (uvicorn vs gunicorn), error debug detail |
 | `APP_NAME` | `opinionated-genai-starter` | Log channel naming |
 | `AUTH_PRIVATE_KEY_PATH` / `AUTH_PUBLIC_KEY_PATH` | `keys/*.pem` | `AuthService` JWT |
+| `OAUTH_PROVIDERS` + `OAUTH_*_CLIENT_*` | off | Login-with-X (Google/Facebook/Microsoft/GitHub/Apple) |
+| `IDP_RESOURCE_SERVER_ENABLED` + `IDP_*` | off | Accept enterprise IdP Bearer JWTs |
 | `SQL_BACKEND` | `sqlite` | `SQLService`, Alembic |
 | `SQLITE_DB_PATH` | `database/app.db` | SQLite URL |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `PG_*` | — | PostgreSQL |
@@ -915,18 +920,34 @@ Domain LLM errors (the `LLMError` hierarchy) are caught at the agent / pipeline 
 
 ## Authentication
 
-JWT-based authentication with RS256 (RSA asymmetric keys).
+JWT-based authentication with RS256 (RSA asymmetric keys), optional social Login-with-X, and optional enterprise IdP resource-server mode.
 
 **Components:**
-- `AuthService` (`base/services/auth/__init__.py`) — token generation, refresh, and validation
-- `PasswordHashingService` (`base/tools/security.py`) — Argon2 password hashing
-- `validate_user` / `validate_user_dependency` (`base/services/auth/dependencies.py`) — route protection via module-level `Depends` singletons
+- `AuthService` (`base/services/auth/__init__.py`) — local token mint/refresh/validate; optional IdP Bearer validation via JWKS
+- `OAuthService` (`base/services/auth/oauth/`) — OAuth/OIDC authorize + callback + exchange for Google / Facebook / Microsoft / GitHub / Apple
+- `user_identity` table — links `(provider, subject)` → local `user.id` (stable app UUID for FKs)
+- `PasswordHashingService` (`base/tools/security.py`) — Argon2 (password accounts only; social-only users have `password_hash=null`)
+- `validate_user` / `validate_user_dependency` — route protection
 
-**Token flow:**
-1. Register: hash password, create user in DB
-2. Login: verify password, generate access + refresh token pair
-3. Protected routes: `validate_user_dependency` validates access token, returns `UserDTO`
-4. Refresh: validate refresh token, generate new token pair
+**Local password flow:**
+1. Register: hash password, create user
+2. Login: verify password, mint access + refresh token pair
+3. Protected routes: validate access token → `UserDTO`
+4. Refresh: validate refresh token, mint new pair
+
+**Social Login-with-X (env-gated):**
+1. Enable providers: `OAUTH_PROVIDERS=google,github,apple` plus each provider’s credentials / redirect URI
+2. Browser: `GET /auth/oauth/{provider}` → redirect to IdP
+3. Callback: `GET|POST /auth/oauth/{provider}/callback` → upsert `user` + `user_identity` → redirect to `OAUTH_SUCCESS_REDIRECT?code=…` (Apple uses `form_post`)
+4. SPA: `POST /auth/oauth/exchange` with `{ "code": "…" }` → local `TokenPair`
+5. List enabled providers: `GET /auth/oauth/providers`
+
+**Sign in with Apple:** set `OAUTH_APPLE_CLIENT_ID` (Services ID), `OAUTH_APPLE_TEAM_ID`, `OAUTH_APPLE_KEY_ID`, and `OAUTH_APPLE_PRIVATE_KEY_PATH` (or inline PEM). The API mints the ES256 client-secret JWT at token exchange. Optionally set a pre-generated `OAUTH_APPLE_CLIENT_SECRET` instead.
+
+Password and social coexist. Verified-email auto-link attaches a new provider to an existing local user when the provider email is verified.
+
+**Enterprise IdP resource server (optional):**
+Set `IDP_RESOURCE_SERVER_ENABLED=true` plus `IDP_ISSUER`, `IDP_AUDIENCE`, and `IDP_JWKS_URL` (or discovery). Clients may send the IdP access token as `Authorization: Bearer …`; the API verifies JWKS/`iss`/`aud`, maps via `user_identity` (`IDP_PROVIDER_NAME`), and returns the same `UserDTO` contract. Local app JWTs still work.
 
 **Token types:** `AccessToken` and `RefreshToken` are `NewType` wrappers around `str` for type safety.
 

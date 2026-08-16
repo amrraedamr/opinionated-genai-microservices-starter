@@ -24,6 +24,30 @@ class AuthErrors(Enum):
         "message": "Token incomplete.",
         "status_code": status.HTTP_401_UNAUTHORIZED,
     }
+    OAUTH_PROVIDER_DISABLED = {
+        "message": "OAuth provider is not configured.",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
+    OAUTH_STATE_INVALID = {
+        "message": "Invalid or expired OAuth state.",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
+    OAUTH_EXCHANGE_FAILED = {
+        "message": "OAuth token exchange failed.",
+        "status_code": status.HTTP_502_BAD_GATEWAY,
+    }
+    OAUTH_PROFILE_INCOMPLETE = {
+        "message": "OAuth provider did not return a usable identity.",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
+    OAUTH_CODE_INVALID = {
+        "message": "Invalid or expired OAuth exchange code.",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
+    IDP_NOT_CONFIGURED = {
+        "message": "Identity provider resource server is not configured.",
+        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+    }
 
 
 class DatabaseErrors(Enum):

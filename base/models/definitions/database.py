@@ -29,6 +29,7 @@ class SQLBackend(StrEnum):
 
 class DatabaseTable(StrEnum):
     USER = "user"
+    USER_IDENTITY = "user_identity"
     PROMPT = "prompt"
     ACTIVE_PROMPT = "active_prompt"
     CONVERSATION = "conversation"

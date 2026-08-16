@@ -1,7 +1,22 @@
+import base64
+import hashlib
+import secrets
+
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from base.services.common.meta import NonInitialize
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def pkce_pair() -> tuple[str, str]:
+    """Return (code_verifier, code_challenge) for OAuth PKCE S256."""
+    verifier = b64url(secrets.token_bytes(32))
+    challenge = b64url(hashlib.sha256(verifier.encode("ascii")).digest())
+    return verifier, challenge
 
 
 class PasswordHashingService(metaclass=NonInitialize):
