@@ -52,13 +52,13 @@ A production-ready FastAPI starter with a layered architecture, metaclass-based 
 ### Prerequisites
 
 - Python 3.12+
-- [Poetry](https://python-poetry.org/)
+- [uv](https://docs.astral.sh/uv/)
 - RSA key pair for JWT (see below)
 
 ### Installation
 
 ```bash
-poetry install
+uv sync
 ```
 
 ### Generate RSA Keys (JWT Auth)
@@ -82,17 +82,17 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 ```bash
 # Apply all migrations (creates/updates database schema)
-poetry run alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### Run
 
 ```bash
-# Using poetry script
-poetry run api
+# Using the uv-managed environment
+uv run api
 
 # Or directly with uvicorn
-poetry run uvicorn base.main:app --reload
+uv run uvicorn base.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
@@ -103,16 +103,16 @@ Schema changes are managed via Alembic. The migration environment reads `SQL_BAC
 
 ```bash
 # Apply all pending migrations
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # Generate a new migration after changing ORM models
-poetry run alembic revision --autogenerate -m "description of change"
+uv run alembic revision --autogenerate -m "description of change"
 
 # Rollback one migration
-poetry run alembic downgrade -1
+uv run alembic downgrade -1
 
 # View current migration status
-poetry run alembic current
+uv run alembic current
 ```
 
 ---
@@ -304,7 +304,7 @@ poetry run alembic current
 ├── .env                                  # Local config + secrets (gitignored)
 ├── .env.example                          # Documented env var template
 ├── GETTING_STARTED.md                    # Friendly intro: what it is + how to run + try it
-├── pyproject.toml                        # Poetry project & dependencies
+├── pyproject.toml                        # uv project metadata & dependencies
 └── Dockerfile
 ```
 
@@ -1283,6 +1283,6 @@ Gunicorn is configured with:
 | **Streaming** | SSE via sse-starlette |
 | **Password Hashing** | argon2-cffi |
 | **Logging** | colorlog (colored console output) |
-| **Package Manager** | Poetry |
+| **Package Manager** | uv |
 | **Linting** | Ruff |
 | **Pre-commit** | pre-commit hooks |

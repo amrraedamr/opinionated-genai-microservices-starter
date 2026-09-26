@@ -1,17 +1,27 @@
 FROM python:3.14-slim-bookworm AS builder
 
-RUN pip install --no-cache-dir poetry==2.1.3
+COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /uvx /bin/
+
+ENV UV_PYTHON_DOWNLOADS=0 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-RUN poetry config virtualenvs.in-project true && \
-    poetry install --no-root --no-directory --without dev --no-interaction --no-ansi
+RUN uv sync \
+    --locked \
+    --no-dev \
+    --no-install-project \
+    --no-editable
 
 COPY . .
 
-RUN poetry install --without dev --no-interaction --no-ansi
+RUN uv sync \
+    --locked \
+    --no-dev \
+    --no-editable
 
 
 FROM python:3.14-slim-bookworm AS runner
@@ -21,14 +31,15 @@ RUN addgroup --system appgroup && \
 
 WORKDIR /app
 
-COPY --from=builder --chown=appuser:appgroup /app/.venv ./.venv
-COPY --from=builder --chown=appuser:appgroup /app .
+COPY --from=builder --chown=appuser:appgroup /app /app
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 USER appuser
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD .venv/bin/python health_check.py
+    CMD ["python", "health_check.py"]
 
 ENTRYPOINT ["/bin/sh", "run.sh"]

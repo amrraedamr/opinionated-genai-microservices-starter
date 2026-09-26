@@ -39,7 +39,7 @@ It's aimed at:
 ## Prerequisites
 
 - **Python 3.12+**
-- **[Poetry](https://python-poetry.org/docs/#installation)**
+- **[uv](https://docs.astral.sh/uv/getting-started/installation/)**
 - **OpenSSL** for generating the JWT key pair
 - *(Optional)* **Docker** if you want to point at MySQL / Postgres / MongoDB / Redis containers instead of running with the bundled SQLite
 
@@ -49,7 +49,7 @@ It's aimed at:
 
 ```bash
 # 1. Install dependencies
-poetry install
+uv sync
 
 # 2. Generate the JWT RSA key pair
 mkdir -p keys
@@ -69,12 +69,12 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 4. Apply database migrations
 #    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # 5. Run the API
-poetry run api
+uv run api
 # or, equivalently:
-# poetry run uvicorn base.main:app --reload
+# uv run uvicorn base.main:app --reload
 ```
 
 The API is now serving at `http://localhost:8000`.

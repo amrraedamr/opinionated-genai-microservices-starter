@@ -60,6 +60,7 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.ruff_cache/
 
 # MyPy
 .mypy_cache/
