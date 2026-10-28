@@ -1,12 +1,21 @@
-from typing import NewType
-
 from pydantic import EmailStr, field_validator
 
 from base.models.view_models import BaseModel
+from base.services.auth import AccessToken, RefreshToken, TokenPair
 from base.tools.validators import validate_name, validate_password
 
-AccessToken = NewType("AccessToken", str)
-RefreshToken = NewType("RefreshToken", str)
+__all__ = [
+    "AccessToken",
+    "LoginRequest",
+    "LoginResponse",
+    "OAuthExchangeRequest",
+    "OAuthProvidersResponse",
+    "RefreshRequest",
+    "RefreshResponse",
+    "RefreshToken",
+    "RegisterRequest",
+    "TokenPair",
+]
 
 
 class RegisterRequest(BaseModel):
@@ -35,11 +44,6 @@ class RefreshRequest(BaseModel):
 
 
 class RefreshResponse(BaseModel):
-    access_token: AccessToken
-    refresh_token: RefreshToken
-
-
-class TokenPair(BaseModel):
     access_token: AccessToken
     refresh_token: RefreshToken
 

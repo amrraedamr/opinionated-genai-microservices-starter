@@ -4,15 +4,27 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 from jwt import encode
 
 from base.models.definitions.errors import AuthErrors
+from base.services.configuration import get_settings
+from base.services.configuration.mixins import OAuthSettingsMixin
 from base.services.http import HttpRequestService
 from base.tools.errors import raise_error
-from chat_api.settings import settings
+
+
+def _config() -> OAuthSettingsMixin:
+    """The service's settings, as the OAuth provider registry needs to see them.
+
+    Typed against the mixin rather than a hand-written Protocol: both live in
+    `base`, so there is no dependency inversion to protect against, and the
+    38 provider fields stay in exactly one place instead of being mirrored
+    into a Protocol that would silently drift.
+    """
+    return cast(OAuthSettingsMixin, get_settings())
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,10 +61,10 @@ def _split_providers(raw: str) -> list[str]:
 
 
 def _load_apple_private_key() -> str:
-    raw = settings.oauth_apple_private_key.strip()
+    raw = _config().oauth_apple_private_key.strip()
     if raw:
         return raw.replace("\\n", "\n")
-    path = settings.oauth_apple_private_key_path.strip()
+    path = _config().oauth_apple_private_key_path.strip()
     if path:
         return Path(path).read_text(encoding="utf-8")
     return ""
@@ -82,80 +94,80 @@ def build_apple_client_secret(
 
 
 def _resolve_apple_client_secret() -> str:
-    if settings.oauth_apple_client_secret:
-        return settings.oauth_apple_client_secret
+    if _config().oauth_apple_client_secret:
+        return _config().oauth_apple_client_secret
     private_key = _load_apple_private_key()
     if not (
-        settings.oauth_apple_client_id
-        and settings.oauth_apple_team_id
-        and settings.oauth_apple_key_id
+        _config().oauth_apple_client_id
+        and _config().oauth_apple_team_id
+        and _config().oauth_apple_key_id
         and private_key
     ):
         return ""
     return build_apple_client_secret(
-        client_id=settings.oauth_apple_client_id,
-        team_id=settings.oauth_apple_team_id,
-        key_id=settings.oauth_apple_key_id,
+        client_id=_config().oauth_apple_client_id,
+        team_id=_config().oauth_apple_team_id,
+        key_id=_config().oauth_apple_key_id,
         private_key_pem=private_key,
     )
 
 
 def load_oauth_provider_configs() -> dict[str, OAuthProviderConfig]:
-    enabled = set(_split_providers(settings.oauth_providers))
+    enabled = set(_split_providers(_config().oauth_providers))
     configs: dict[str, OAuthProviderConfig] = {}
 
     google = OAuthProviderConfig(
         name="google",
-        client_id=settings.oauth_google_client_id,
-        client_secret=settings.oauth_google_client_secret,
-        redirect_uri=settings.oauth_google_redirect_uri,
-        scopes=settings.oauth_google_scopes,
-        discovery_url=settings.oauth_google_discovery_url,
+        client_id=_config().oauth_google_client_id,
+        client_secret=_config().oauth_google_client_secret,
+        redirect_uri=_config().oauth_google_redirect_uri,
+        scopes=_config().oauth_google_scopes,
+        discovery_url=_config().oauth_google_discovery_url,
         profile_style="oidc",
     )
     facebook = OAuthProviderConfig(
         name="facebook",
-        client_id=settings.oauth_facebook_client_id,
-        client_secret=settings.oauth_facebook_client_secret,
-        redirect_uri=settings.oauth_facebook_redirect_uri,
-        scopes=settings.oauth_facebook_scopes,
-        authorize_url=settings.oauth_facebook_authorize_url,
-        token_url=settings.oauth_facebook_token_url,
-        userinfo_url=settings.oauth_facebook_userinfo_url,
+        client_id=_config().oauth_facebook_client_id,
+        client_secret=_config().oauth_facebook_client_secret,
+        redirect_uri=_config().oauth_facebook_redirect_uri,
+        scopes=_config().oauth_facebook_scopes,
+        authorize_url=_config().oauth_facebook_authorize_url,
+        token_url=_config().oauth_facebook_token_url,
+        userinfo_url=_config().oauth_facebook_userinfo_url,
         profile_style="facebook",
     )
     microsoft = OAuthProviderConfig(
         name="microsoft",
-        client_id=settings.oauth_microsoft_client_id,
-        client_secret=settings.oauth_microsoft_client_secret,
-        redirect_uri=settings.oauth_microsoft_redirect_uri,
-        scopes=settings.oauth_microsoft_scopes,
-        discovery_url=settings.oauth_microsoft_discovery_url,
+        client_id=_config().oauth_microsoft_client_id,
+        client_secret=_config().oauth_microsoft_client_secret,
+        redirect_uri=_config().oauth_microsoft_redirect_uri,
+        scopes=_config().oauth_microsoft_scopes,
+        discovery_url=_config().oauth_microsoft_discovery_url,
         profile_style="oidc",
     )
     github = OAuthProviderConfig(
         name="github",
-        client_id=settings.oauth_github_client_id,
-        client_secret=settings.oauth_github_client_secret,
-        redirect_uri=settings.oauth_github_redirect_uri,
-        scopes=settings.oauth_github_scopes,
-        authorize_url=settings.oauth_github_authorize_url,
-        token_url=settings.oauth_github_token_url,
-        userinfo_url=settings.oauth_github_userinfo_url,
+        client_id=_config().oauth_github_client_id,
+        client_secret=_config().oauth_github_client_secret,
+        redirect_uri=_config().oauth_github_redirect_uri,
+        scopes=_config().oauth_github_scopes,
+        authorize_url=_config().oauth_github_authorize_url,
+        token_url=_config().oauth_github_token_url,
+        userinfo_url=_config().oauth_github_userinfo_url,
         profile_style="github",
     )
     apple_secret = _resolve_apple_client_secret()
     apple = OAuthProviderConfig(
         name="apple",
-        client_id=settings.oauth_apple_client_id,
+        client_id=_config().oauth_apple_client_id,
         client_secret=apple_secret,
-        redirect_uri=settings.oauth_apple_redirect_uri,
-        scopes=settings.oauth_apple_scopes,
-        discovery_url=settings.oauth_apple_discovery_url,
+        redirect_uri=_config().oauth_apple_redirect_uri,
+        scopes=_config().oauth_apple_scopes,
+        discovery_url=_config().oauth_apple_discovery_url,
         profile_style="apple",
         response_mode="form_post",
-        apple_team_id=settings.oauth_apple_team_id,
-        apple_key_id=settings.oauth_apple_key_id,
+        apple_team_id=_config().oauth_apple_team_id,
+        apple_key_id=_config().oauth_apple_key_id,
         apple_private_key=_load_apple_private_key(),
     )
 

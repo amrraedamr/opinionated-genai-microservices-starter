@@ -1,0 +1,251 @@
+"""JWT signing and verification. No database, no user record.
+
+This is the half of authentication every service needs. The half that owns user
+rows — login, registration, OAuth account linking — belongs to whichever service
+owns the user table, and builds on top of these.
+"""
+
+from datetime import UTC, datetime
+from functools import lru_cache
+from typing import Any, cast
+from uuid import UUID
+
+from base.models.definitions.errors import AuthErrors
+from base.services.auth.models import AccessToken, Principal, RefreshToken, TokenPair
+from base.services.auth.protocol import (
+    SupportsIdpConfig,
+    SupportsTokenIssuingConfig,
+    SupportsTokenVerificationConfig,
+)
+from base.services.common.meta import Singleton
+from base.services.configuration import get_settings
+from base.tools.errors import MissingExtraError, raise_error
+
+try:
+    from jwt import (
+        DecodeError,
+        ExpiredSignatureError,
+        InvalidAlgorithmError,
+        PyJWKClient,
+        decode,
+        encode,
+    )
+    from jwt.exceptions import PyJWKClientError, PyJWKError
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("auth", "pyjwt", feature="token issuing/verification") from exc
+
+
+@lru_cache(maxsize=8)
+def load_key(path: str) -> str:
+    """Read a PEM key from disk. Cached — keys do not change at runtime."""
+    with open(path) as handle:
+        return handle.read()
+
+
+def _as_uuid(value: str) -> UUID | None:
+    try:
+        return UUID(value)
+    except (ValueError, AttributeError):
+        return None
+
+
+class TokenIssuer(metaclass=Singleton):
+    """Signs first-party RS256 tokens. Needs the private key."""
+
+    def __init__(self, config: SupportsTokenIssuingConfig | None = None) -> None:
+        self._config = config or cast(SupportsTokenIssuingConfig, get_settings())
+
+    def issue_pair(self, claims: dict[str, Any]) -> TokenPair:
+        """Issue an access/refresh pair around caller-supplied claims.
+
+        `claims` is whatever the owning service wants to assert — typically a
+        subject and an email. `base` does not decide what identity means.
+        """
+        access = self.issue_access(claims)
+        refresh = self.issue_refresh({k: v for k, v in claims.items() if k != "email"})
+        return TokenPair(access_token=access, refresh_token=refresh)
+
+    def issue_access(self, claims: dict[str, Any]) -> AccessToken:
+        expiry = self._config.access_token_expiry_seconds
+        return AccessToken(self._sign({**claims, "type": "access"}, expiry))
+
+    def issue_refresh(self, claims: dict[str, Any]) -> RefreshToken:
+        expiry = self._config.refresh_token_expiry_seconds
+        return RefreshToken(self._sign({**claims, "type": "refresh"}, expiry))
+
+    def _sign(self, payload: dict[str, Any], expiry_seconds: int) -> str:
+        now = datetime.now(UTC)
+        return encode(
+            payload={
+                **payload,
+                "iat": now,
+                "exp": now.timestamp() + expiry_seconds,
+            },
+            key=load_key(self._config.auth_private_key_path),
+            algorithm="RS256",
+        )
+
+
+class TokenVerifier(metaclass=Singleton):
+    """Verifies a bearer token and returns a `Principal`.
+
+    Handles first-party RS256 tokens and, when the service composes
+    `IdpResourceServerMixin`, enterprise IdP tokens validated against JWKS.
+    Needs only a public key or a JWKS endpoint, so every service can do this.
+    """
+
+    def __init__(self, config: SupportsTokenVerificationConfig | None = None) -> None:
+        self._config = config or cast(
+            SupportsTokenVerificationConfig, get_settings()
+        )
+        self._jwks_client: PyJWKClient | None = None
+        if self._idp_enabled:
+            self._init_idp()
+
+    # IdP wiring
+
+    @property
+    def _idp(self) -> SupportsIdpConfig | None:
+        config = self._config
+        return cast(SupportsIdpConfig, config) if isinstance(
+            config, SupportsIdpConfig
+        ) else None
+
+    @property
+    def _idp_enabled(self) -> bool:
+        idp = self._idp
+        return bool(idp and idp.idp_resource_server_enabled)
+
+    def _init_idp(self) -> None:
+        idp = self._idp
+        if idp is None:  # pragma: no cover
+            return
+        if not idp.idp_issuer or not idp.idp_audience:
+            raise ValueError(
+                "IDP_ISSUER and IDP_AUDIENCE are required when "
+                "IDP_RESOURCE_SERVER_ENABLED=true"
+            )
+        jwks_url = idp.idp_jwks_url
+        if not jwks_url and idp.idp_discovery_url:
+            jwks_url = self._resolve_jwks_url(idp.idp_discovery_url)
+        if not jwks_url and idp.idp_issuer:
+            discovery = idp.idp_issuer.rstrip("/") + "/.well-known/openid-configuration"
+            jwks_url = self._resolve_jwks_url(discovery)
+        if not jwks_url:
+            raise ValueError(
+                "IDP_JWKS_URL or IDP_DISCOVERY_URL (or a discoverable issuer) "
+                "is required when IDP_RESOURCE_SERVER_ENABLED=true"
+            )
+        self._jwks_client = PyJWKClient(jwks_url)
+
+    @staticmethod
+    def _resolve_jwks_url(discovery_url: str) -> str:
+        from base.services.http import HttpRequestService
+
+        response = HttpRequestService().call_endpoint(discovery_url, method="GET")
+        if response.failed or not isinstance(response.data, dict):
+            raise ValueError(f"Failed to load IdP discovery document: {discovery_url}")
+        jwks_uri = response.data.get("jwks_uri")
+        if not isinstance(jwks_uri, str) or not jwks_uri:
+            raise ValueError("IdP discovery document missing jwks_uri")
+        return jwks_uri
+
+    # Public
+
+    def verify(self, token: str, *, expected_type: str = "access") -> Principal:
+        """Verify any supported token and return the caller it asserts."""
+        if self._idp_enabled and self._is_idp_token(token):
+            return self._verify_idp(token)
+        return self._verify_local(token, expected_type=expected_type)
+
+    def decode_local(self, token: str, *, expected_type: str) -> dict[str, Any]:
+        """Verify a first-party token and return its raw claims."""
+        try:
+            payload: dict[str, Any] = decode(
+                token,
+                key=load_key(self._config.auth_public_key_path),
+                algorithms=["RS256"],
+            )
+        except (DecodeError, InvalidAlgorithmError):
+            raise_error(AuthErrors.USER_DECODE_FAILED)
+        except ExpiredSignatureError:
+            raise_error(AuthErrors.USER_TOKEN_EXPIRED)
+        if payload.get("type") != expected_type:
+            raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
+        return payload
+
+    # Local
+
+    def _verify_local(self, token: str, *, expected_type: str) -> Principal:
+        payload = self.decode_local(token, expected_type=expected_type)
+        subject = str(payload.get("user_id") or payload.get("sub") or "")
+        if not subject:
+            raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
+        return Principal(
+            subject=subject,
+            user_id=_as_uuid(subject),
+            email=payload.get("email"),
+            roles=frozenset(payload.get("roles", []) or []),
+            scopes=frozenset((payload.get("scope") or "").split()),
+            issuer=payload.get("iss"),
+            token_type=payload.get("type"),
+            claims=payload,
+        )
+
+    # IdP
+
+    def _is_idp_token(self, token: str) -> bool:
+        idp = self._idp
+        if idp is None:
+            return False
+        try:
+            unverified: dict[str, Any] = decode(
+                token,
+                options={"verify_signature": False, "verify_exp": False},
+            )
+        except DecodeError:
+            return False
+        issuer = unverified.get("iss")
+        return isinstance(issuer, str) and issuer == idp.idp_issuer
+
+    def _verify_idp(self, token: str) -> Principal:
+        idp = self._idp
+        if self._jwks_client is None or idp is None:
+            raise_error(AuthErrors.IDP_NOT_CONFIGURED)
+        algorithms = [a.strip() for a in idp.idp_algorithms.split(",") if a.strip()] or [
+            "RS256"
+        ]
+        try:
+            signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+            payload: dict[str, Any] = decode(
+                token,
+                key=signing_key.key,
+                algorithms=algorithms,
+                issuer=idp.idp_issuer,
+                audience=idp.idp_audience,
+            )
+        except ExpiredSignatureError:
+            raise_error(AuthErrors.USER_TOKEN_EXPIRED)
+        except (
+            DecodeError,
+            InvalidAlgorithmError,
+            PyJWKClientError,
+            PyJWKError,
+            ValueError,
+        ):
+            raise_error(AuthErrors.USER_DECODE_FAILED)
+
+        subject = str(payload.get("sub") or "")
+        email = str(payload.get(idp.idp_email_claim) or "")
+        if not subject or not email:
+            raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
+        return Principal(
+            subject=subject,
+            user_id=_as_uuid(subject),
+            email=email,
+            roles=frozenset(payload.get("roles", []) or []),
+            scopes=frozenset((payload.get("scope") or "").split()),
+            issuer=idp.idp_issuer,
+            token_type="access",
+            claims=payload,
+        )

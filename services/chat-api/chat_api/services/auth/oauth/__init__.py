@@ -13,13 +13,13 @@ from jwt import (
 )
 
 from base.models.definitions.errors import AuthErrors
+from base.services.auth import TokenPair
+from base.services.auth.oauth import OAuthProfile, OAuthProviderRegistry
 from base.services.common.meta import Singleton
 from base.tools.errors import raise_error
 from base.tools.security import pkce_pair
 from chat_api.models.orm.user import UserDTO
 from chat_api.models.orm.user_identity import UserIdentityDTO
-from chat_api.models.view_models.auth import TokenPair
-from chat_api.services.auth.oauth.providers import OAuthProfile, OAuthProviderRegistry
 from chat_api.settings import settings
 from chat_api.stores.user import UserStore
 from chat_api.stores.user_identity import UserIdentityStore
