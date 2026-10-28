@@ -1,18 +1,6 @@
-"""chat_api's user-bound authentication.
-
-Everything mechanical — signing, verifying, JWKS, the bearer scheme, the OAuth
-provider protocol — now lives in `base.services.auth` and is shared by every
-service. What remains here is the part only an identity-owning service can do:
-turn a verified `Principal` into a `UserDTO`, and turn a `UserDTO` into claims
-worth signing.
-
-When phase 5 extracts the identity service, this module moves with the user
-table and chat_api drops to `base`'s `principal_dependency` alone.
-"""
+"""User-bound authentication."""
 
 import uuid
-
-from fastapi.security import HTTPAuthorizationCredentials
 
 from base.models.definitions.errors import AuthErrors
 from base.services.auth import Principal, TokenIssuer, TokenPair, TokenVerifier
@@ -35,7 +23,7 @@ class AuthService(metaclass=Singleton):
     # Issuing
 
     def generate_token_pair(self, user: UserDTO) -> TokenPair:
-        """Decide what this service asserts about a user, then let base sign it."""
+        """Issue an access/refresh pair for a user."""
         return self._issuer.issue_pair(
             {"user_id": str(user.id), "email": user.email},
         )
@@ -48,17 +36,10 @@ class AuthService(metaclass=Singleton):
 
     # Resolving
 
-    async def validate_user(
-        self,
-        credentials: HTTPAuthorizationCredentials,
-    ) -> UserDTO:
-        """Verify the token with base, then resolve it to this service's user."""
-        principal = self._verifier.verify(credentials.credentials)
-        return await self.resolve_principal(principal)
-
-    async def resolve_principal(self, principal: Principal) -> UserDTO:
+    async def aresolve_principal(self, principal: Principal) -> UserDTO:
+        """Resolve a verified principal to this service's user."""
         if self._is_idp_principal(principal):
-            return await self._resolve_idp_principal(principal)
+            return await self._aresolve_idp_principal(principal)
         if principal.user_id is None:
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         return await self._user_store.aget(principal.user_id)
@@ -70,8 +51,8 @@ class AuthService(metaclass=Singleton):
             and principal.issuer == settings.idp_issuer
         )
 
-    async def _resolve_idp_principal(self, principal: Principal) -> UserDTO:
-        """An IdP user may not exist locally yet — link or create on first sight."""
+    async def _aresolve_idp_principal(self, principal: Principal) -> UserDTO:
+        """Link or create the local user for an IdP principal."""
         if not principal.email:
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         claims = principal.claims

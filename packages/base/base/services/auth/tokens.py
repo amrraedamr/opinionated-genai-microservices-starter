@@ -1,12 +1,7 @@
-"""JWT signing and verification. No database, no user record.
-
-This is the half of authentication every service needs. The half that owns user
-rows — login, registration, OAuth account linking — belongs to whichever service
-owns the user table, and builds on top of these.
-"""
+"""JWT signing and verification."""
 
 from datetime import UTC, datetime
-from functools import lru_cache
+from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
@@ -35,13 +30,6 @@ except ModuleNotFoundError as exc:  # pragma: no cover
     raise MissingExtraError("auth", "pyjwt", feature="token issuing/verification") from exc
 
 
-@lru_cache(maxsize=8)
-def load_key(path: str) -> str:
-    """Read a PEM key from disk. Cached — keys do not change at runtime."""
-    with open(path) as handle:
-        return handle.read()
-
-
 def _as_uuid(value: str) -> UUID | None:
     try:
         return UUID(value)
@@ -50,17 +38,14 @@ def _as_uuid(value: str) -> UUID | None:
 
 
 class TokenIssuer(metaclass=Singleton):
-    """Signs first-party RS256 tokens. Needs the private key."""
+    """Signs first-party RS256 access and refresh tokens."""
 
     def __init__(self, config: SupportsTokenIssuingConfig | None = None) -> None:
         self._config = config or cast(SupportsTokenIssuingConfig, get_settings())
+        self._private_key: str = Path(self._config.auth_private_key_path).read_text()
 
     def issue_pair(self, claims: dict[str, Any]) -> TokenPair:
-        """Issue an access/refresh pair around caller-supplied claims.
-
-        `claims` is whatever the owning service wants to assert — typically a
-        subject and an email. `base` does not decide what identity means.
-        """
+        """Issue an access/refresh pair around caller-supplied claims."""
         access = self.issue_access(claims)
         refresh = self.issue_refresh({k: v for k, v in claims.items() if k != "email"})
         return TokenPair(access_token=access, refresh_token=refresh)
@@ -81,23 +66,17 @@ class TokenIssuer(metaclass=Singleton):
                 "iat": now,
                 "exp": now.timestamp() + expiry_seconds,
             },
-            key=load_key(self._config.auth_private_key_path),
+            key=self._private_key,
             algorithm="RS256",
         )
 
 
 class TokenVerifier(metaclass=Singleton):
-    """Verifies a bearer token and returns a `Principal`.
-
-    Handles first-party RS256 tokens and, when the service composes
-    `IdpResourceServerMixin`, enterprise IdP tokens validated against JWKS.
-    Needs only a public key or a JWKS endpoint, so every service can do this.
-    """
+    """Verifies a bearer token and returns a `Principal`."""
 
     def __init__(self, config: SupportsTokenVerificationConfig | None = None) -> None:
-        self._config = config or cast(
-            SupportsTokenVerificationConfig, get_settings()
-        )
+        self._config = config or cast(SupportsTokenVerificationConfig, get_settings())
+        self._public_key: str = Path(self._config.auth_public_key_path).read_text()
         self._jwks_client: PyJWKClient | None = None
         if self._idp_enabled:
             self._init_idp()
@@ -107,9 +86,11 @@ class TokenVerifier(metaclass=Singleton):
     @property
     def _idp(self) -> SupportsIdpConfig | None:
         config = self._config
-        return cast(SupportsIdpConfig, config) if isinstance(
-            config, SupportsIdpConfig
-        ) else None
+        return (
+            cast(SupportsIdpConfig, config)
+            if isinstance(config, SupportsIdpConfig)
+            else None
+        )
 
     @property
     def _idp_enabled(self) -> bool:
@@ -163,7 +144,7 @@ class TokenVerifier(metaclass=Singleton):
         try:
             payload: dict[str, Any] = decode(
                 token,
-                key=load_key(self._config.auth_public_key_path),
+                key=self._public_key,
                 algorithms=["RS256"],
             )
         except (DecodeError, InvalidAlgorithmError):

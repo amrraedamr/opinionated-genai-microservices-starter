@@ -63,15 +63,7 @@ def create_app(
     title: str = DEFAULT_TITLE,
     version: str = DEFAULT_VERSION,
 ) -> FastAPI:
-    """Build a FastAPI application for one service.
-
-    `base` supplies the composition machinery; the service decides what goes
-    in. Nothing here is specific to any domain: routers, capabilities and CORS
-    policy are all arguments.
-
-    Capabilities start in the order given and shut down in reverse. Their
-    `probe()` results back `/readyz`.
-    """
+    """Build a FastAPI application for one service."""
     logger = ConsoleLoggerService()
     capabilities = tuple(capabilities)
     lifespan_hooks = tuple(lifespan_hooks)
@@ -139,7 +131,7 @@ def create_app(
 
     @app.get("/livez", tags=["Main"])
     async def livez() -> HealthReport:
-        """The process is up. Deliberately does not touch any dependency."""
+        """The process is up."""
         return HealthReport(status=ProbeStatus.OK)
 
     @app.get("/readyz", tags=["Main"])

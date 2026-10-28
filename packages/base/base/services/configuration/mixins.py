@@ -1,9 +1,4 @@
-"""One mixin per optional subsystem, mirroring the dependency extras.
-
-A service inherits a mixin only if it uses that subsystem. Field names are
-lifted unchanged from the original single `Settings` class, so existing `.env`
-files and deployment variables keep working.
-"""
+"""One settings mixin per optional subsystem, mirroring the dependency extras."""
 
 from typing import Literal
 
@@ -13,12 +8,7 @@ from pydantic import AliasChoices, BaseModel, Field
 
 
 class ServerSettingsMixin(BaseModel):
-    """HTTP serving. Pairs with the `server` extra (uvicorn + gunicorn).
-
-    These are deliberately *not* on `CoreSettings`: a broker-consuming worker
-    installs no `server` extra and has no HTTP surface, so it should not carry
-    an API prefix or a gunicorn worker count it can never act on.
-    """
+    """HTTP serving. Pairs with the `server` extra (uvicorn + gunicorn)."""
 
     api_prefix: str = "/api"
     api_host: str = "0.0.0.0"

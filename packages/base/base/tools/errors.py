@@ -24,18 +24,7 @@ class StateDecodeError(ValueError):
 
 
 class MissingExtraError(ImportError):
-    """Raised when a subsystem is used without the extra that provides it.
-
-    `base` splits its dependencies into optional extras, so a service installs
-    only what it uses. Importing a guarded module without its extra should say
-    exactly what to add, not fail with a bare `ModuleNotFoundError` three
-    frames deep.
-
-        try:
-            from qdrant_client import AsyncQdrantClient
-        except ModuleNotFoundError as exc:  # pragma: no cover
-            raise MissingExtraError("vectors", "qdrant-client") from exc
-    """
+    """Raised when a subsystem is used without the extra that provides it."""
 
     def __init__(
         self, extra: str, distribution: str, feature: str | None = None

@@ -1,9 +1,4 @@
-"""chat_api's settings: `CoreSettings` plus only the mixins it actually uses.
-
-Inheriting one god-class would give this service OAuth-for-every-provider, Mongo,
-Cosmos, Qdrant and Azure Search fields it never reads — and would make it
-impossible to *require* a field here without requiring it everywhere.
-"""
+"""chat_api settings: `CoreSettings` plus the mixins this service uses."""
 
 from pydantic_settings import SettingsConfigDict
 
@@ -57,6 +52,5 @@ settings = ChatApiSettings()
 
 
 if __name__ == "__main__":  # pragma: no cover
-    # `uv run --package chat_api python -m chat_api.settings` — fail loudly in
-    # CI or a container preStart probe rather than on the first request.
+    # Validation entrypoint for CI and container preStart probes.
     print(f"chat_api settings OK (service_name={settings.service_name!r}, environment={settings.environment!r})")

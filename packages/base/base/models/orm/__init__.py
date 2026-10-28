@@ -1,10 +1,4 @@
-"""Reusable ORM behaviour. Deliberately ships no tables and no declarative root.
-
-A shared `DeclarativeBase` would mean a shared `MetaData`, and a shared
-`MetaData` means every service's `alembic autogenerate` sees every other
-service's tables. Each service declares its own declarative root and reuses
-the behaviour here through these mixins instead.
-"""
+"""Reusable ORM mixins."""
 
 from dataclasses import asdict
 from datetime import UTC, datetime

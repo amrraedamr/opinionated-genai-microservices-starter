@@ -7,9 +7,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy_utils.types.uuid import UUIDType
 
-# Explicit, not magic. Each service's migrations must see its own tables and
-# nothing else — walking a package would reintroduce the shared-metadata
-# coupling this split exists to remove. Add a line here for each new table.
+# Import each table so it registers on ChatBase.metadata. Add a line per table.
 import chat_api.models.orm.chat_history_message  # noqa: F401, E402
 import chat_api.models.orm.conversation  # noqa: F401, E402
 import chat_api.models.orm.prompt  # noqa: F401, E402

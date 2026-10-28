@@ -27,9 +27,7 @@ class PromptLoader(metaclass=Singleton):
         Subscribes to pub/sub for distributed reload events.
         If load_prompts_from_db is enabled, loads DB overrides.
 
-        `template_packages` are the service's own prompt packages. `base`
-        ships the loading mechanism, never the prompts themselves, so a
-        service that registers no templates is a valid configuration.
+        `template_packages` are the service's own prompt packages.
         """
         reload_pubsub: AsyncGenerator[str, None] = self._cache_service.subscribe(
             CacheChannels.PROMPT_RELOAD.value

@@ -1,18 +1,12 @@
 from fastapi import FastAPI
 
-from base.capabilities import BaseCapability
 from base.models.definitions.health import ProbeStatus
 from base.models.view_models.health import ProbeResult
 from base.services.logging.tee_stream import TerminalCaptureService
 
 
-class TerminalCapture(BaseCapability):
-    """Tees stdout/stderr onto a pub/sub channel so `/logs` can stream them.
-
-    The underlying service is a `KeyedSingleton` keyed on `app_name`, so any
-    other holder of the same name gets the same instance. It is resolved
-    lazily rather than in `__init__` to keep nothing alive across `fork()`.
-    """
+class TerminalCapture:
+    """Tees stdout/stderr onto a pub/sub channel so `/logs` can stream them."""
 
     name = "terminal-capture"
 

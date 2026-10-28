@@ -1,11 +1,4 @@
-"""Declarative root for chat_api.
-
-Owns its own `MetaData`. Nothing here inherits a declarative base from `base`,
-because inheriting one would share its `MetaData` — and a shared `MetaData`
-makes every service's `alembic autogenerate` emit every other service's
-tables. Reusable column and serialisation behaviour comes from `base` mixins
-instead.
-"""
+"""Declarative root for chat_api."""
 
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 

@@ -3,12 +3,7 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class SupportsSQLConfig(Protocol):
-    """Settings shape the SQL client and service require.
-
-    A service that uses `SQLService` without `SQLSettingsMixin` fails at type
-    check time with a clear message, rather than at runtime with
-    `AttributeError` on the first query.
-    """
+    """Settings shape the SQL client and service require."""
 
     sql_backend: str
     sqlite_db_path: str

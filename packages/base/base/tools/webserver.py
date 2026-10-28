@@ -3,6 +3,8 @@ import logging
 import multiprocessing
 from typing import Any, cast
 
+from starlette.types import ASGIApp
+
 from base.tools.errors import MissingExtraError
 
 try:
@@ -34,16 +36,7 @@ def run_webserver(
     environment: str | None = None,
     settings: SupportsServerConfig | None = None,
 ) -> None:
-    """Serve `app_path` with uvicorn locally and gunicorn everywhere else.
-
-    `app_path` is the service's own import path — `base` no longer knows which
-    application it is serving.
-
-    `settings` must satisfy `SupportsServerConfig`, i.e. the service composed
-    `ServerSettingsMixin`. Host and port come from there (populated from
-    `API_HOST` / `API_PORT` like any other setting); the explicit arguments
-    stay as an override for tests and embedding.
-    """
+    """Serve `app_path` with uvicorn locally and gunicorn everywhere else."""
     settings = settings or cast(SupportsServerConfig, get_settings())
     host = host or settings.api_host
     port = int(port if port is not None else settings.api_port)
@@ -73,19 +66,17 @@ def run_gunicorn(
 ) -> None:
     settings = settings or cast(SupportsServerConfig, get_settings())
 
-    # `preload: True` below imports the application in the master process, so
-    # this runs pre-fork. Anything that must not be shared between workers —
-    # engines, connection pools, clients — belongs in a capability's
-    # `startup()`, which the ASGI lifespan runs once per worker post-fork.
+    # Runs pre-fork under `preload: True`. Create engines, pools and clients
+    # in a capability's `startup()`, which runs per worker post-fork.
     app = _import_app(app_path)
 
     class AIPlatform(BaseApplication):
-        def __init__(self, app, options=None):
-            self.options = options or {}
+        def __init__(self, app: ASGIApp, options: dict[str, Any] | None = None) -> None:
+            self.options: dict[str, Any] = options or {}
             self.application = app
             super().__init__()
 
-        def load_config(self):
+        def load_config(self) -> None:
             cfg = self.cfg
             if cfg is None:
                 return
@@ -98,7 +89,7 @@ def run_gunicorn(
             for key, value in config.items():
                 cfg.set(key.lower(), value)
 
-        def load(self):
+        def load(self) -> ASGIApp:
             return self.application
 
     options = {

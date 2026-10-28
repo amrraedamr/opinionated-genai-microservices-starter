@@ -17,13 +17,7 @@ from base.tools.errors import raise_error
 
 
 def _config() -> OAuthSettingsMixin:
-    """The service's settings, as the OAuth provider registry needs to see them.
-
-    Typed against the mixin rather than a hand-written Protocol: both live in
-    `base`, so there is no dependency inversion to protect against, and the
-    38 provider fields stay in exactly one place instead of being mirrored
-    into a Protocol that would silently drift.
-    """
+    """The service's OAuth settings."""
     return cast(OAuthSettingsMixin, get_settings())
 
 

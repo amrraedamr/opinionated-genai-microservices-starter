@@ -3,13 +3,12 @@ from types import ModuleType
 
 from fastapi import FastAPI
 
-from base.capabilities import BaseCapability
 from base.models.definitions.health import ProbeStatus
 from base.models.view_models.health import ProbeResult
 from base.services.prompt.loader import PromptLoader
 
 
-class Prompts(BaseCapability):
+class Prompts:
     """Loads prompt templates and subscribes to distributed reload events."""
 
     name = "prompts"

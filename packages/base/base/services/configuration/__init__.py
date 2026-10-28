@@ -1,14 +1,4 @@
-"""Settings provider.
-
-`base` cannot import a service's settings class — that would invert the
-dependency. Instead the service's composition root calls `configure(...)` once
-with its own composed settings, and `base` subsystems read them through
-`get_settings()`.
-
-Prefer passing config explicitly into constructors for new code; the
-`SupportsXConfig` protocols next to each service exist for exactly that. The
-provider is the pragmatic bridge for existing call sites.
-"""
+"""Settings provider for `base` subsystems."""
 
 from base.services.configuration.core import CoreSettings
 

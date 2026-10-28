@@ -1,9 +1,4 @@
-"""Composition root for chat_api.
-
-This is where the service decides what it is: its settings, which routers it
-exposes, which capabilities it needs, and how it is served. `base` supplies the
-machinery and knows none of it.
-"""
+"""Composition root for chat_api."""
 
 from base.services.configuration import configure
 from chat_api.settings import settings
@@ -40,7 +35,7 @@ app = create_app(
     "/logs",
     dependencies=[validate_user_dependency],
 )
-async def get_logs():
+async def get_logs() -> EventSourceResponse:
     capture_service = TerminalCaptureService(settings.service_name)
     stream_iterator = StreamIterator(source=capture_service.subscribe())
     return EventSourceResponse(stream_iterator, media_type="text/event-stream")

@@ -3,14 +3,14 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class SupportsTokenVerificationConfig(Protocol):
-    """Satisfied by `TokenVerificationMixin`. Every service needs this."""
+    """Satisfied by `TokenVerificationMixin`."""
 
     auth_public_key_path: str
 
 
 @runtime_checkable
 class SupportsTokenIssuingConfig(SupportsTokenVerificationConfig, Protocol):
-    """Satisfied by `TokenIssuingMixin`. Only a token-issuing service needs it."""
+    """Satisfied by `TokenIssuingMixin`."""
 
     auth_private_key_path: str
     access_token_expiry_seconds: int
@@ -19,11 +19,7 @@ class SupportsTokenIssuingConfig(SupportsTokenVerificationConfig, Protocol):
 
 @runtime_checkable
 class SupportsIdpConfig(Protocol):
-    """Satisfied by `IdpResourceServerMixin`.
-
-    Lets a service accept tokens from an enterprise IdP (Entra and friends)
-    alongside first-party ones.
-    """
+    """Satisfied by `IdpResourceServerMixin`."""
 
     idp_resource_server_enabled: bool
     idp_issuer: str
