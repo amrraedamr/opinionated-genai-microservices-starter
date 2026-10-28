@@ -2,20 +2,20 @@ import asyncio
 from logging.config import fileConfig
 from typing import Any
 
-# Import each table so it registers on IdentityBase.metadata. Add a line per table.
-import identity.models.orm.user  # noqa: F401, E402
-import identity.models.orm.user_identity  # noqa: F401, E402
-from identity.models.orm import IdentityBase
-from identity.settings import settings
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy_utils.types.uuid import UUIDType
 
+# Import each table so it registers on IdentityBase.metadata. Add a line per table.
+import identity.models.orm.user  # noqa: F401, E402
+import identity.models.orm.user_identity  # noqa: F401, E402
 from alembic import context
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend
 from base.services.configuration import configure
+from identity.models.orm import IdentityBase
+from identity.settings import settings
 
 configure(settings)
 

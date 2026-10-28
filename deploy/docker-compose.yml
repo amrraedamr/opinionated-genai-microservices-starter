@@ -82,3 +82,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  ingestion_worker:
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: ingestion_worker
+    image: genai/ingestion_worker:local
+    env_file:
+      - path: ../.env.shared
+        required: false
+      - path: ../services/ingestion_worker/.env
+        required: false
+    environment:
+      ENVIRONMENT: local
+      SERVICE_NAME: ingestion_worker
+      BROKER: redis
+      REDIS_URL: redis://redis:6379/2
+    # No HTTP surface, so the image's /livez probe does not apply.
+    healthcheck:
+      disable: true
+    depends_on:
+      redis:
+        condition: service_healthy

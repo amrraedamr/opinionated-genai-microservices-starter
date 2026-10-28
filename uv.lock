@@ -11,7 +11,9 @@ resolution-markers = [
 members = [
     "base",
     "chat-api",
+    "contracts",
     "identity",
+    "ingestion-worker",
 ]
 
 [manifest.dependency-groups]
@@ -274,6 +276,7 @@ version = "0.1.0"
 source = { editable = "packages/base" }
 dependencies = [
     { name = "colorlog" },
+    { name = "contracts" },
     { name = "fastapi" },
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic", extra = ["email"] },
@@ -346,6 +349,7 @@ requires-dist = [
     { name = "azure-search-documents", marker = "extra == 'azure'", specifier = ">=11.6.0,<12" },
     { name = "azure-storage-blob", marker = "extra == 'azure'", specifier = ">=12.28.0,<13" },
     { name = "colorlog", specifier = ">=6.10.1,<7" },
+    { name = "contracts", editable = "packages/contracts" },
     { name = "cryptography", marker = "extra == 'auth'", specifier = ">=46.0.5,<47" },
     { name = "fastapi", specifier = ">=0.133.1,<0.134" },
     { name = "greenlet", marker = "extra == 'sql'", specifier = ">=3.3.2,<4" },
@@ -591,6 +595,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/8c/55/ba79756cb90c8d69d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/19/0b6647bf5e331521e55d2b63bfbdc210bd9cd605189273f03614a05f702d/colorlog-6.12.0-py3-none-any.whl", hash = "sha256:30d392604e9110045a2c2aeefc27d7a017abbab63f3a8aee594eac0801df784e", size = 12239, upload-time = "2026-07-23T13:40:39.562Z" },
 ]
+
+[[package]]
+name = "contracts"
+version = "0.1.0"
+source = { editable = "packages/contracts" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.12.5,<3" }]
 
 [[package]]
 name = "cryptography"
@@ -946,6 +961,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
+]
+
+[[package]]
+name = "ingestion-worker"
+version = "0.1.0"
+source = { editable = "services/ingestion_worker" }
+dependencies = [
+    { name = "base", extra = ["redis"] },
+    { name = "contracts" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "base", extras = ["redis"], editable = "packages/base" },
+    { name = "contracts", editable = "packages/contracts" },
 ]
 
 [[package]]

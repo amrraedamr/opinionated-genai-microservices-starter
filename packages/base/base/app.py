@@ -14,6 +14,7 @@ from base.models.view_models.health import HealthReport, ProbeResult
 from base.services.common.meta import Stored, scope_id
 from base.services.configuration import CoreSettings
 from base.services.logging.console import ConsoleLoggerService
+from base.tools import correlation
 from base.tools.exception_handlers import AppExceptionHandler
 from base.tools.routers import init_routers
 
@@ -105,9 +106,14 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         scope_id.set(uuid4())
+        incoming = correlation.adopt(
+            request.headers.get(correlation.HEADER),
+            request.headers.get(correlation.TRACEPARENT),
+        )
         response = None
         try:
             response = await call_next(request)
+            response.headers[correlation.HEADER] = str(incoming)
             return response
         finally:
             should_delete = response is None or not response.headers.get(

@@ -23,6 +23,7 @@ dependencies = [
     "requests>=2.32.5,<3",
     "pyhumps>=3.8.0,<4",
     "colorlog>=6.10.1,<7",
+    "contracts",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,9 @@ azure = [
     "azure-cosmos>=4.15.0,<5",
     "azure-search-documents>=11.6.0,<12",
 ]
+
+[tool.uv.sources]
+contracts = { workspace = true }
 
 [tool.uv.build-backend]
 module-root = ""

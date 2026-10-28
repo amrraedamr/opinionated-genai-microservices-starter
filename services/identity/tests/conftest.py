@@ -63,6 +63,7 @@ def app_environment() -> Iterator[pathlib.Path]:
 @pytest.fixture(scope="session")
 def client(app_environment: pathlib.Path):
     from fastapi.testclient import TestClient
+
     from identity.app import app
 
     with TestClient(app) as test_client:
