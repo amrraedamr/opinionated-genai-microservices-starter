@@ -2,6 +2,7 @@
 __pycache__
 *.pyc
 *.egg-info
+
 # Virtual environments
 .venv
 .venvs
@@ -20,10 +21,19 @@ venv
 # OS
 .DS_Store
 
-# Env & secrets
+# Env & secrets — templates stay so an image can document its own vars
 .env
 .env.*
 !.env.example
+!.env.*.example
+keys
+*.pem
+*.key
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
@@ -32,12 +42,12 @@ venv
 .ruff_cache
 .mypy_cache
 .pytest_cache
+.coverage
+htmlcov
 
-# Docker
-Dockerfile
-.dockerignore
-docker-compose*.yml
-
-# Misc
-CLAUDE.md
-claude-memory
+# Not needed at runtime
+docs
+deploy
+tools
+README.md
+GETTING_STARTED.md
