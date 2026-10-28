@@ -171,15 +171,45 @@ checkout (editable during development) instead of from PyPI.
 | Task | Command |
 | --- | --- |
 | Install everything | `uv sync --all-packages` |
-| Install one service only | `uv sync --package chat-api` |
-| Run a service | `uv run --package chat-api serve` |
+| Install one service only | `UV_PROJECT_ENVIRONMENT=.venvs/chat-api uv sync --package chat-api` |
+| Run a service | `UV_PROJECT_ENVIRONMENT=.venvs/chat-api uv run --package chat-api serve` |
 | Add a dep to one service | `uv add --package chat-api some-lib` |
 | Add a dep to the library | `uv add --package base --optional llm some-lib` |
 | Run one service's migrations | `cd services/chat-api && uv run alembic upgrade head` |
 | Lint everything | `uv run ruff check .` |
 
-`uv sync --package chat-api` installs **only** that service's dependency closure. This is
-the mechanism behind small per-service images in [doc 06](06-build-and-deploy.md).
+### A workspace has one `.venv` — use `UV_PROJECT_ENVIRONMENT` for per-service installs
+
+This trips people up, so it is worth stating plainly: **a uv workspace resolves to a single
+shared environment.** `uv sync --package chat-api` does not add `chat-api` to what is
+already installed — it makes the environment contain *exactly* `chat-api`'s closure, which
+**uninstalls** any other service that was there. Two services therefore cannot run locally
+out of the same environment.
+
+Point each service at its own environment directory instead:
+
+```bash
+UV_PROJECT_ENVIRONMENT=.venvs/chat-api uv sync --package chat-api
+UV_PROJECT_ENVIRONMENT=.venvs/identity uv sync --package identity
+```
+
+The services now coexist, each with only its own dependency closure, still resolved from
+the single root `uv.lock`. Verified end to end: a `base[redis]` consumer imports `redis`
+and fails on `qdrant_client`; a `base[vectors]` consumer is the exact inverse; both share
+the identical `httpx` build. That is the extras design in [doc 02](02-library-boundary.md)
+working as intended.
+
+`.venvs/` is gitignored. The default `.venv` stays useful for whole-workspace work
+(`uv sync --all-packages`, linting, repo-wide tooling).
+
+> **Task-runner note for [doc 06](06-build-and-deploy.md):** whatever `make dev s=<svc>`
+> ends up being must export `UV_PROJECT_ENVIRONMENT=.venvs/$(s)` so the isolated
+> environment is the default path and nobody has to remember this.
+
+`uv sync --package chat-api` installs **only** that service's dependency closure. In a
+container that single-closure behaviour is exactly what is wanted — the image has one
+service in it — which is the mechanism behind small per-service images in
+[doc 06](06-build-and-deploy.md).
 
 ---
 

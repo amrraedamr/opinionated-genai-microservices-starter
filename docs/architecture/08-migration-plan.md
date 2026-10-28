@@ -25,10 +25,13 @@ Order the work so that each phase is independently valuable and independently re
 
 - Create `packages/base/`, move `base/` into it with its own `pyproject.toml`.
 - Root `pyproject.toml` becomes workspace-only (`[tool.uv.workspace]`, shared `ruff`, dev
-  group).
+  group). Add `src = [".", "packages/base"]` under `[tool.ruff]` so isort still resolves
+  `base` as first-party from files outside the package.
 - Regenerate `uv.lock`; verify `uv sync --all-packages`.
-- Move `alembic/`, `alembic.ini`, `.env.example`, `Dockerfile`, `run.sh` alongside the
-  single existing app so paths stay coherent.
+- Leave the single app's operational files (`alembic/`, `alembic.ini`, `.env.example`,
+  `Dockerfile`, `run.sh`) at the repository root. They are still coherent there — the root
+  is the only app — and phase 2 moves them once, directly to their final home in
+  `services/chat-api/`, rather than relocating them twice.
 
 **Risk:** low. **Verify:** app boots, `/health-check` responds, `alembic upgrade head`
 works, existing endpoints behave.

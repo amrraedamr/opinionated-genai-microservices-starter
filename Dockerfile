@@ -9,11 +9,12 @@ ENV UV_PYTHON_DOWNLOADS=0 \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
+COPY packages/base/pyproject.toml packages/base/pyproject.toml
 
 RUN uv sync \
     --locked \
     --no-dev \
-    --no-install-project \
+    --no-install-workspace \
     --no-editable
 
 COPY . .

@@ -7,6 +7,18 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "base",
+]
+
+[manifest.dependency-groups]
+dev = [
+    { name = "pre-commit", specifier = ">=2.16.0" },
+    { name = "pre-commit-hooks", specifier = ">=4.1.0" },
+    { name = "ruff", specifier = ">=0.15.4,<0.16" },
+]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
@@ -385,7 +397,7 @@ wheels = [
 [[package]]
 name = "base"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "packages/base" }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiomysql" },
@@ -421,13 +433,6 @@ dependencies = [
     { name = "sse-starlette" },
     { name = "tiktoken" },
     { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pre-commit" },
-    { name = "pre-commit-hooks" },
-    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -466,13 +471,6 @@ requires-dist = [
     { name = "sse-starlette", specifier = ">=3.2.0,<4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.41.0,<0.42" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=2.16.0" },
-    { name = "pre-commit-hooks", specifier = ">=4.1.0" },
-    { name = "ruff", specifier = ">=0.15.4,<0.16" },
 ]
 
 [[package]]
