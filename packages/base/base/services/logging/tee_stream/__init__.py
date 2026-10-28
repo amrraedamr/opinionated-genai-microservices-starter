@@ -71,6 +71,10 @@ class TerminalCaptureService(metaclass=KeyedSingleton):
         self._original_stderr: TextIO
         self._active = False
 
+    @property
+    def is_active(self) -> bool:
+        return self._active
+
     def start(self):
         if self._active:
             return

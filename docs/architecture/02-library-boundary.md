@@ -115,6 +115,8 @@ def create_app(
     capabilities: Sequence[Capability] = (),
     lifespan_hooks: Sequence[LifespanHook] = (),
     cors_origins: Sequence[str] | None = None,
+    title: str = DEFAULT_TITLE,
+    version: str = DEFAULT_VERSION,
 ) -> FastAPI:
     ...
 ```
@@ -167,8 +169,25 @@ class Capability(Protocol):
     async def probe(self) -> ProbeResult: ...
 ```
 
+`BaseCapability` sits alongside it with no-op defaults, so an implementation overrides only
+what it actually needs.
+
+Capabilities start in the order listed and shut down in reverse. A capability that fails to
+start does not strand the ones already running, and a `shutdown()` that raises does not stop
+the rest from running.
+
+> **Instantiate, do not connect.** A capability object is built at module import, and
+> gunicorn runs with `preload: True` — so anything created in `__init__` is created *before*
+> `fork()` and shared by every worker. Connection pools, engines and clients are not
+> fork-safe. Build them in `startup()`, which the ASGI lifespan runs once per worker after
+> the fork.
+
 This also yields a real `/readyz`: each enabled capability reports whether its backing
-dependency is reachable, instead of today's static `{"status": "ok"}`.
+dependency is reachable, instead of today's static `{"status": "ok"}`. Probes are gathered
+concurrently, a raising probe is reported as `failed` rather than bubbling out, and the
+worst individual status becomes the overall one — `failed` answers 503, everything else
+answers 200. `/livez` deliberately touches nothing: it reports only that the process is up,
+so a transient dependency outage does not get the container killed.
 
 ### Webserver must stop hardcoding the app path
 
