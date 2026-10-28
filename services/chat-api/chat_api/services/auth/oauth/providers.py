@@ -10,9 +10,9 @@ from urllib.parse import urlencode
 from jwt import encode
 
 from base.models.definitions.errors import AuthErrors
-from base.services.configuration import settings
 from base.services.http import HttpRequestService
 from base.tools.errors import raise_error
+from chat_api.settings import settings
 
 
 @dataclass(frozen=True, slots=True)
@@ -389,8 +389,7 @@ class OAuthProviderRegistry:
             raise_error(AuthErrors.OAUTH_PROFILE_INCOMPLETE)
         separator = "&" if "?" in cfg.userinfo_url else "?"
         url = (
-            f"{cfg.userinfo_url}{separator}"
-            f"{urlencode({'access_token': access_token})}"
+            f"{cfg.userinfo_url}{separator}{urlencode({'access_token': access_token})}"
         )
         resp = await self._http.acall_endpoint(url, method="GET")
         if resp.failed or not isinstance(resp.data, dict):

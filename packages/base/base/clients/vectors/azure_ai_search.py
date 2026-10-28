@@ -1,14 +1,21 @@
-from azure.core.credentials import AzureKeyCredential
-from azure.core.exceptions import AzureError
-from azure.search.documents import SearchClient
-from azure.search.documents.aio import SearchClient as AsyncSearchClient
-from azure.search.documents.indexes import SearchIndexClient
-from azure.search.documents.indexes.aio import (
-    SearchIndexClient as AsyncSearchIndexClient,
-)
+from base.tools.errors import MissingExtraError
+
+try:
+    from azure.core.credentials import AzureKeyCredential
+    from azure.core.exceptions import AzureError
+    from azure.search.documents import SearchClient
+    from azure.search.documents.aio import SearchClient as AsyncSearchClient
+    from azure.search.documents.indexes import SearchIndexClient
+    from azure.search.documents.indexes.aio import (
+        SearchIndexClient as AsyncSearchIndexClient,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "azure", "azure-search-documents", feature="AzureAISearchClient"
+    ) from exc
 
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 
 
 class AzureAISearchClient(metaclass=Singleton):
@@ -21,11 +28,11 @@ class AzureAISearchClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._endpoint: str = settings.azure_search_endpoint
+        self._endpoint: str = get_settings().azure_search_endpoint
         if not self._endpoint:
             raise ValueError("azure_search_endpoint must be configured in Settings")
 
-        api_key: str = settings.azure_search_api_key
+        api_key: str = get_settings().azure_search_api_key
         if not api_key:
             raise ValueError("azure_search_api_key must be configured in Settings")
         self._credential: AzureKeyCredential = AzureKeyCredential(api_key)

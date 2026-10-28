@@ -1,4 +1,9 @@
-from openai import APIError, APIStatusError
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai import APIError, APIStatusError
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="LLM error models") from exc
 
 
 class LLMError(Exception):

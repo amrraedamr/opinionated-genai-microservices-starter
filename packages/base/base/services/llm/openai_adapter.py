@@ -1,24 +1,29 @@
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionDeveloperMessageParam,
-    ChatCompletionMessageParam,
-    ChatCompletionMessageToolCallParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionUserMessageParam,
-)
-from openai.types.chat.chat_completion_message_function_tool_call_param import (
-    Function as ChatCompletionMessageFunctionToolCallParam,
-)
-from openai.types.responses import (
-    EasyInputMessageParam,
-    ResponseInputItemParam,
-    ResponseInputParam,
-)
-from openai.types.responses.response_function_tool_call_param import (
-    ResponseFunctionToolCallParam,
-)
-from openai.types.responses.response_input_param import FunctionCallOutput
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai.types.chat import (
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionDeveloperMessageParam,
+        ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionToolMessageParam,
+        ChatCompletionUserMessageParam,
+    )
+    from openai.types.chat.chat_completion_message_function_tool_call_param import (
+        Function as ChatCompletionMessageFunctionToolCallParam,
+    )
+    from openai.types.responses import (
+        EasyInputMessageParam,
+        ResponseInputItemParam,
+        ResponseInputParam,
+    )
+    from openai.types.responses.response_function_tool_call_param import (
+        ResponseFunctionToolCallParam,
+    )
+    from openai.types.responses.response_input_param import FunctionCallOutput
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="OpenAIMessageAdapter") from exc
 
 from base.models.definitions.message import MessageRole
 from base.models.view_models.chat_history import StoredMessage

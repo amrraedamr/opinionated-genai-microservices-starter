@@ -1,13 +1,18 @@
 import urllib.parse
 from typing import Any
 
-from pymongo import AsyncMongoClient, MongoClient
-from pymongo.asynchronous.database import AsyncDatabase
-from pymongo.database import Database
-from pymongo.errors import PyMongoError
+from base.tools.errors import MissingExtraError
+
+try:
+    from pymongo import AsyncMongoClient, MongoClient
+    from pymongo.asynchronous.database import AsyncDatabase
+    from pymongo.database import Database
+    from pymongo.errors import PyMongoError
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("mongo", "pymongo", feature="MongoDBClient") from exc
 
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 
 
 class MongoDBClient(metaclass=Singleton):
@@ -19,12 +24,12 @@ class MongoDBClient(metaclass=Singleton):
     def __init__(self) -> None:
         self._connection_string: str = self._build_connection_string()
 
-        self._min_pool_size: int = settings.mongodb_min_pool_size
-        self._max_pool_size: int = settings.mongodb_max_pool_size
-        self._connect_timeout_ms: int = settings.mongodb_connect_timeout_ms
-        self._socket_timeout_ms: int = settings.mongodb_socket_timeout_ms
+        self._min_pool_size: int = get_settings().mongodb_min_pool_size
+        self._max_pool_size: int = get_settings().mongodb_max_pool_size
+        self._connect_timeout_ms: int = get_settings().mongodb_connect_timeout_ms
+        self._socket_timeout_ms: int = get_settings().mongodb_socket_timeout_ms
         self._server_selection_timeout_ms: int = (
-            settings.mongodb_server_selection_timeout_ms
+            get_settings().mongodb_server_selection_timeout_ms
         )
 
         self._sync_client: MongoClient[dict[str, Any]] | None = None
@@ -32,11 +37,11 @@ class MongoDBClient(metaclass=Singleton):
 
     @staticmethod
     def _build_connection_string() -> str:
-        base_path: str = settings.mongodb_base_path
-        username: str = settings.mongodb_username
-        password: str = settings.mongodb_password
-        host: str = settings.mongodb_host
-        params: str = settings.mongodb_params
+        base_path: str = get_settings().mongodb_base_path
+        username: str = get_settings().mongodb_username
+        password: str = get_settings().mongodb_password
+        host: str = get_settings().mongodb_host
+        params: str = get_settings().mongodb_params
 
         return (
             f"{base_path}://"

@@ -8,7 +8,7 @@ from base.models.definitions.cache import CacheChannels
 from base.models.view_models.prompt import Prompt
 from base.services.cache.memory import InMemoryCacheService
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 from base.services.logging.console import ConsoleLoggerService
 
 
@@ -21,9 +21,7 @@ class PromptLoader(metaclass=Singleton):
         self._cache_service: InMemoryCacheService = InMemoryCacheService()
         self._logger: ConsoleLoggerService = ConsoleLoggerService()
 
-    async def initialize(
-        self, template_packages: Sequence[ModuleType] = ()
-    ) -> None:
+    async def initialize(self, template_packages: Sequence[ModuleType] = ()) -> None:
         """Must be called ONCE at app startup.
 
         Subscribes to pub/sub for distributed reload events.
@@ -44,7 +42,7 @@ class PromptLoader(metaclass=Singleton):
         self.load_templates(template_packages)
         self._templates_loaded = True
 
-        if settings.load_prompts_from_db:
+        if get_settings().load_prompts_from_db:
             await self.load_prompts_from_db()
 
         self._logger.info(

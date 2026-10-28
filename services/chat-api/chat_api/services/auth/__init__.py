@@ -15,7 +15,6 @@ from jwt.exceptions import PyJWKClientError, PyJWKError
 
 from base.models.definitions.errors import AuthErrors
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
 from base.services.http import HttpRequestService
 from base.tools.errors import raise_error
 from chat_api.models.orm.user import UserDTO
@@ -25,6 +24,7 @@ from chat_api.models.view_models.auth import (
     TokenPair,
 )
 from chat_api.services.auth.oauth import OAuthService
+from chat_api.settings import settings
 from chat_api.stores.user import UserStore
 
 
@@ -104,9 +104,7 @@ class AuthService(metaclass=Singleton):
     # Private — local JWT
 
     async def _validate_local_user(self, token: str) -> UserDTO:
-        payload = self._decode_local_token(
-            AccessToken(token), expected_type="access"
-        )
+        payload = self._decode_local_token(AccessToken(token), expected_type="access")
         user_id: str | None = payload.get("user_id")
         email: str | None = payload.get("email")
         if not user_id or not email:

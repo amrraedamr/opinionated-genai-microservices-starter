@@ -10,8 +10,13 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Self
 
-from sqlalchemy import DateTime
-from sqlalchemy.orm import MappedColumn, mapped_column
+from base.tools.errors import MissingExtraError
+
+try:
+    from sqlalchemy import DateTime
+    from sqlalchemy.orm import MappedColumn, mapped_column
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("sql", "sqlalchemy", feature="ORM mixins") from exc
 
 from base.tools.misc import _make_json_serializable
 

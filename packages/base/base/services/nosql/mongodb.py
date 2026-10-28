@@ -3,15 +3,20 @@ import math
 import time
 from typing import Any
 
-from pymongo.asynchronous.database import AsyncDatabase
-from pymongo.database import Database
-from pymongo.errors import OperationFailure, PyMongoError
-from pymongo.operations import SearchIndexModel
+from base.tools.errors import MissingExtraError
+
+try:
+    from pymongo.asynchronous.database import AsyncDatabase
+    from pymongo.database import Database
+    from pymongo.errors import OperationFailure, PyMongoError
+    from pymongo.operations import SearchIndexModel
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("mongo", "pymongo", feature="MongoDBService") from exc
 
 from base.clients.nosql.mongodb import MongoDBClient
 from base.models.view_models.database import PaginatedResult, PaginationParams
 from base.services.common.meta import SingletonABC
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 from base.services.nosql import AbstractNoSQLService
 from base.tools.errors import ServiceHealthCheckError
 
@@ -25,8 +30,8 @@ class MongoDBService(AbstractNoSQLService, metaclass=SingletonABC):
     def __init__(self) -> None:
         super().__init__()
         self._client: MongoDBClient = MongoDBClient()
-        self._database_name: str = settings.mongodb_database
-        self._vector_size: int = settings.azure_openai_embedding_dimensions
+        self._database_name: str = get_settings().mongodb_database
+        self._vector_size: int = get_settings().azure_openai_embedding_dimensions
 
     def _get_database(self) -> Database[dict[str, Any]]:
         return self._client.get_database(self._database_name)

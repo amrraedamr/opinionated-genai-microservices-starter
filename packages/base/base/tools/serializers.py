@@ -9,14 +9,19 @@ from uuid import UUID
 
 from fastapi import UploadFile
 from pydantic import BaseModel
-from sqlalchemy.orm import DeclarativeBase
+
+try:  # `sql` extra. Optional on purpose — this module is core.
+    from sqlalchemy.orm import DeclarativeBase
+except ModuleNotFoundError:  # pragma: no cover
+    DeclarativeBase = None  # type: ignore[assignment, misc]
 
 
 def encode_datetime(obj: datetime) -> dict[str, Any]:
     return {"_type": "datetime", "value": obj.isoformat()}
 
 
-def encode_dto(obj: DeclarativeBase) -> dict[str, Any]:
+def encode_dto(obj: Any) -> dict[str, Any]:
+    """Encode any service's declarative model, whatever its declarative root."""
     return {
         "_type": "dto",
         "_class": f"{obj.__class__.__module__}.{obj.__class__.__name__}",
@@ -55,12 +60,16 @@ def encode_upload_file(obj: UploadFile) -> dict[str, Any]:
 class ExpansiveEncoder(JSONEncoder):
     encoders: ClassVar[dict[type, Callable[[Any], dict[str, Any]]]] = {
         datetime: encode_datetime,
-        DeclarativeBase: encode_dto,
         BaseModel: encode_base_model,
         UUID: encode_uuid,
         type: encode_type,
         UploadFile: encode_upload_file,
     }
+
+    # Only registered when the `sql` extra is installed; a service with no
+    # SQLAlchemy has no declarative models to encode.
+    if DeclarativeBase is not None:
+        encoders[DeclarativeBase] = encode_dto
 
     def default(self, o: Any) -> Any:
         for cls, encoder in self.encoders.items():

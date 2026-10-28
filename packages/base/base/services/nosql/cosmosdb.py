@@ -1,13 +1,18 @@
 import math
 from typing import Any
 
-from azure.cosmos import ContainerProxy, exceptions
-from azure.cosmos.aio import ContainerProxy as AsyncContainerProxy
+from base.tools.errors import MissingExtraError
+
+try:
+    from azure.cosmos import ContainerProxy, exceptions
+    from azure.cosmos.aio import ContainerProxy as AsyncContainerProxy
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("azure", "azure-cosmos", feature="CosmosDBService") from exc
 
 from base.clients.nosql.cosmosdb import CosmosDBClient
 from base.models.view_models.database import PaginatedResult, PaginationParams
 from base.services.common.meta import SingletonABC
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 from base.services.logging.console import ConsoleLoggerService
 from base.services.nosql import AbstractNoSQLService
 from base.tools.errors import ServiceHealthCheckError
@@ -18,7 +23,7 @@ class CosmosDBService(AbstractNoSQLService, metaclass=SingletonABC):
 
     def __init__(self) -> None:
         self._client: CosmosDBClient = CosmosDBClient()
-        self._database_name: str = settings.azure_cosmos_database_name
+        self._database_name: str = get_settings().azure_cosmos_database_name
         self._logger: ConsoleLoggerService = ConsoleLoggerService()
 
     def _get_container(self, collection: str) -> ContainerProxy:

@@ -4,12 +4,17 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, asc, desc, func, select, text
-from sqlalchemy.engine import Result
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import UnaryExpression
+from base.tools.errors import MissingExtraError
+
+try:
+    from sqlalchemy import Select, asc, desc, func, select, text
+    from sqlalchemy.engine import Result
+    from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql.expression import UnaryExpression
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("sql", "sqlalchemy", feature="AbstractSQLService") from exc
 
 from base.models.view_models.database import (
     PaginatedResult,

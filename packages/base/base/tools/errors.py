@@ -23,6 +23,32 @@ class StateDecodeError(ValueError):
     """Raised when the encoded state is invalid, tampered, or cannot be decoded."""
 
 
+class MissingExtraError(ImportError):
+    """Raised when a subsystem is used without the extra that provides it.
+
+    `base` splits its dependencies into optional extras, so a service installs
+    only what it uses. Importing a guarded module without its extra should say
+    exactly what to add, not fail with a bare `ModuleNotFoundError` three
+    frames deep.
+
+        try:
+            from qdrant_client import AsyncQdrantClient
+        except ModuleNotFoundError as exc:  # pragma: no cover
+            raise MissingExtraError("vectors", "qdrant-client") from exc
+    """
+
+    def __init__(
+        self, extra: str, distribution: str, feature: str | None = None
+    ) -> None:
+        self.extra = extra
+        self.distribution = distribution
+        subject = feature or f"The {distribution!r} integration"
+        super().__init__(
+            f'{subject} requires the {extra!r} extra. Add "base[{extra}]" to '
+            f"this service's pyproject.toml (installs {distribution})."
+        )
+
+
 class ServiceHealthCheckError(Exception):
     """Raised when a backend service health probe fails."""
 

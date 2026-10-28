@@ -2,15 +2,22 @@
 
 set -e
 
+# Which service this image runs. One parameterised entrypoint for every
+# service; `docker/service.Dockerfile` makes this a build arg in phase 4.
 SERVICE="${SERVICE:-chat-api}"
+VENV_BIN="${VENV_BIN:-/app/.venv/bin}"
+
+cd "services/$SERVICE"
 
 if [ -n "$RUN_MIGRATIONS" ]; then
     echo "Running migrations for $SERVICE..."
-    (cd "services/$SERVICE" && /app/.venv/bin/alembic upgrade head)
+    "$VENV_BIN/alembic" upgrade head
 fi
 
 export API_HOST=0.0.0.0
 export API_PORT=8000
 
+# Run from the service directory so its own `.env` (and the shared
+# `../../.env.shared`) resolve the way pydantic-settings expects.
 echo "Starting $SERVICE"
-exec .venv/bin/serve
+exec "$VENV_BIN/serve"

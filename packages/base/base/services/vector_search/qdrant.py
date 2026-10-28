@@ -1,20 +1,27 @@
 from typing import Any, cast
 
-from qdrant_client.http.exceptions import (
-    ResponseHandlingException,
-    UnexpectedResponse,
-)
-from qdrant_client.models import (
-    Condition,
-    ExtendedPointId,
-    FieldCondition,
-    Filter,
-    MatchAny,
-    MatchValue,
-    PointIdsList,
-    PointStruct,
-    VectorParams,
-)
+from base.tools.errors import MissingExtraError
+
+try:
+    from qdrant_client.http.exceptions import (
+        ResponseHandlingException,
+        UnexpectedResponse,
+    )
+    from qdrant_client.models import (
+        Condition,
+        ExtendedPointId,
+        FieldCondition,
+        Filter,
+        MatchAny,
+        MatchValue,
+        PointIdsList,
+        PointStruct,
+        VectorParams,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "vectors", "qdrant-client", feature="QdrantVectorSearchService"
+    ) from exc
 
 from base.clients.vectors.qdrant import QdrantClient
 from base.models.definitions.vector_search import (

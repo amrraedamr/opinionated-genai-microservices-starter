@@ -1,6 +1,13 @@
 from enum import StrEnum
 
-from qdrant_client.models import Distance
+from base.tools.errors import MissingExtraError
+
+try:
+    from qdrant_client.models import Distance
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "vectors", "qdrant-client", feature="Vector search definitions"
+    ) from exc
 
 
 class DistanceMetric(StrEnum):

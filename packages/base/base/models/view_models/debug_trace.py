@@ -1,12 +1,17 @@
 from typing import Any
 
-from openai.types.chat import ChatCompletionMessageParam
-from openai.types.completion_usage import CompletionUsage
-from openai.types.responses import (
-    ResponseInputItemParam,
-    ResponseInputParam,
-    ResponseUsage,
-)
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai.types.chat import ChatCompletionMessageParam
+    from openai.types.completion_usage import CompletionUsage
+    from openai.types.responses import (
+        ResponseInputItemParam,
+        ResponseInputParam,
+        ResponseUsage,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="Debug trace models") from exc
 from pydantic import Field
 
 from base.models.view_models import BaseModel

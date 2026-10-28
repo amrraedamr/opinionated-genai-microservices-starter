@@ -1,9 +1,14 @@
-from openai.types.chat import (
-    ChatCompletionMessage,
-    ChatCompletionMessageFunctionToolCall,
-)
-from openai.types.completion_usage import CompletionUsage
-from openai.types.responses import Response, ResponseFunctionToolCall, ResponseUsage
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai.types.chat import (
+        ChatCompletionMessage,
+        ChatCompletionMessageFunctionToolCall,
+    )
+    from openai.types.completion_usage import CompletionUsage
+    from openai.types.responses import Response, ResponseFunctionToolCall, ResponseUsage
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="LLM result models") from exc
 
 from base.models.view_models import BaseModel
 from base.models.view_models.chat_history import StoredToolCall, StoredToolCallFunction

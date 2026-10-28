@@ -1,7 +1,18 @@
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta, timezone
 
-from azure.storage.blob import BlobSasPermissions, ContentSettings, generate_blob_sas
+from base.tools.errors import MissingExtraError
+
+try:
+    from azure.storage.blob import (
+        BlobSasPermissions,
+        ContentSettings,
+        generate_blob_sas,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "azure", "azure-storage-blob", feature="AzureBlobService"
+    ) from exc
 
 from base.clients.blob.azure_blob import AzureBlobClient
 from base.services.blob import AbstractBlobService, BlobProperties

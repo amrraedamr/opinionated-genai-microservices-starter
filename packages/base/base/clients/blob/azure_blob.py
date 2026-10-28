@@ -1,11 +1,18 @@
-from azure.core.exceptions import AzureError
-from azure.identity import DefaultAzureCredential
-from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
-from azure.storage.blob.aio import BlobServiceClient as AsyncBlobServiceClient
+from base.tools.errors import MissingExtraError
+
+try:
+    from azure.core.exceptions import AzureError
+    from azure.identity import DefaultAzureCredential
+    from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+    from azure.storage.blob.aio import BlobServiceClient as AsyncBlobServiceClient
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "azure", "azure-storage-blob", feature="AzureBlobClient"
+    ) from exc
 
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 
 
 class AzureBlobClient(metaclass=Singleton):
@@ -16,7 +23,7 @@ class AzureBlobClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._account_url: str = settings.azure_blob_account_url
+        self._account_url: str = get_settings().azure_blob_account_url
         if not self._account_url:
             raise ValueError("azure_blob_account_url must be configured in Settings")
 

@@ -14,13 +14,13 @@ from jwt import (
 
 from base.models.definitions.errors import AuthErrors
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
 from base.tools.errors import raise_error
 from base.tools.security import pkce_pair
 from chat_api.models.orm.user import UserDTO
 from chat_api.models.orm.user_identity import UserIdentityDTO
 from chat_api.models.view_models.auth import TokenPair
 from chat_api.services.auth.oauth.providers import OAuthProfile, OAuthProviderRegistry
+from chat_api.settings import settings
 from chat_api.stores.user import UserStore
 from chat_api.stores.user_identity import UserIdentityStore
 
@@ -125,9 +125,7 @@ class OAuthService(metaclass=Singleton):
 
         existing: UserDTO | None = None
         if profile.email_verified:
-            existing = await self._user_store._aget(
-                profile.email, column_name="email"
-            )
+            existing = await self._user_store._aget(profile.email, column_name="email")
 
         if existing is None:
             existing = await self._user_store.aadd(

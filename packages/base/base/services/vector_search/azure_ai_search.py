@@ -1,19 +1,26 @@
 import json
 from typing import Any
 
-from azure.core.exceptions import AzureError, ResourceNotFoundError
-from azure.search.documents.indexes.models import (
-    HnswAlgorithmConfiguration,
-    HnswParameters,
-    SearchField,
-    SearchFieldDataType,
-    SearchIndex,
-    SimpleField,
-    VectorSearch,
-    VectorSearchAlgorithmMetric,
-    VectorSearchProfile,
-)
-from azure.search.documents.models import VectorizedQuery
+from base.tools.errors import MissingExtraError
+
+try:
+    from azure.core.exceptions import AzureError, ResourceNotFoundError
+    from azure.search.documents.indexes.models import (
+        HnswAlgorithmConfiguration,
+        HnswParameters,
+        SearchField,
+        SearchFieldDataType,
+        SearchIndex,
+        SimpleField,
+        VectorSearch,
+        VectorSearchAlgorithmMetric,
+        VectorSearchProfile,
+    )
+    from azure.search.documents.models import VectorizedQuery
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError(
+        "azure", "azure-search-documents", feature="AzureAISearchService"
+    ) from exc
 
 from base.clients.vectors.azure_ai_search import AzureAISearchClient
 from base.models.definitions.vector_search import (
@@ -22,7 +29,7 @@ from base.models.definitions.vector_search import (
 )
 from base.models.view_models.vector_search import VectorRecord, VectorSearchResult
 from base.services.common.meta import SingletonABC
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 from base.services.vector_search import AbstractVectorSearchService
 from base.tools.errors import ServiceHealthCheckError
 
@@ -49,8 +56,8 @@ class AzureAISearchService(AbstractVectorSearchService, metaclass=SingletonABC):
     def __init__(self) -> None:
         super().__init__()
         self._client: AzureAISearchClient = AzureAISearchClient()
-        self._vector_field: str = settings.azure_search_vector_field
-        self._key_field: str = settings.azure_search_key_field
+        self._vector_field: str = get_settings().azure_search_vector_field
+        self._key_field: str = get_settings().azure_search_key_field
 
     # Collection / Index Management
 

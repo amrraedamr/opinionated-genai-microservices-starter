@@ -1,14 +1,19 @@
 from typing import Any
 
-from qdrant_client import AsyncQdrantClient as QdrantAsyncClient
-from qdrant_client import QdrantClient as QdrantSyncClient
-from qdrant_client.http.exceptions import (
-    ResponseHandlingException,
-    UnexpectedResponse,
-)
+from base.tools.errors import MissingExtraError
+
+try:
+    from qdrant_client import AsyncQdrantClient as QdrantAsyncClient
+    from qdrant_client import QdrantClient as QdrantSyncClient
+    from qdrant_client.http.exceptions import (
+        ResponseHandlingException,
+        UnexpectedResponse,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("vectors", "qdrant-client", feature="QdrantClient") from exc
 
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 
 
 class QdrantClient(metaclass=Singleton):
@@ -18,11 +23,11 @@ class QdrantClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._url: str = settings.qdrant_url
-        self._api_key: str = settings.qdrant_api_key
-        self._grpc_port: int = settings.qdrant_grpc_port
-        self._prefer_grpc: bool = settings.qdrant_prefer_grpc
-        self._timeout: int = settings.qdrant_timeout
+        self._url: str = get_settings().qdrant_url
+        self._api_key: str = get_settings().qdrant_api_key
+        self._grpc_port: int = get_settings().qdrant_grpc_port
+        self._prefer_grpc: bool = get_settings().qdrant_prefer_grpc
+        self._timeout: int = get_settings().qdrant_timeout
 
         self._sync_client: QdrantSyncClient | None = None
         self._async_client: QdrantAsyncClient | None = None

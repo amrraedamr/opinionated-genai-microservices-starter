@@ -18,8 +18,11 @@ import chat_api.models.orm.user_identity  # noqa: F401, E402
 from alembic import context
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend
-from base.services.configuration import settings
+from base.services.configuration import configure
 from chat_api.models.orm import ChatBase
+from chat_api.settings import settings
+
+configure(settings)
 
 config = context.config
 
@@ -31,7 +34,7 @@ target_metadata = ChatBase.metadata
 
 def _get_client() -> SQLClient:
     backend = SQLBackend(settings.sql_backend)
-    return SQLClient(backend)
+    return SQLClient(backend, settings, _key=backend.value)
 
 
 def _get_async_url() -> str:

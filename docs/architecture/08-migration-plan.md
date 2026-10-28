@@ -94,15 +94,24 @@ no pending autogenerate diff against the existing one.
 **Goal:** services declare what they use.
 
 - Split `base` dependencies into extras; add `MissingExtraError` guards at each optional
-  import site.
-- Split `Settings` into `CoreSettings` + mixins; `chat-api` composes its own.
-- Add `configure()` / `get_settings()`; migrate the 20 `settings` import sites in `base`.
-- Add `Protocol` config contracts for `SQLService`, `LLMService`, cache, vectors.
+  import site. `base/tools/serializers.py` degrades rather than raising — it is core.
+  `SQLClient` probes its backend's drivers, which SQLAlchemy loads by URL rather than by
+  import.
+- Split `Settings` into `CoreSettings` + mixins; `chat-api` composes its own. Field names
+  are lifted unchanged; only `app_name` → `service_name` is renamed.
+- Add `configure()` / `get_settings()`; migrate every `settings` import site in `base` and
+  delete the old singleton outright. The composition root and `alembic/env.py` both call
+  `configure()` first.
+- Add `Protocol` config contracts for SQL, Postgres, MySQL, LLM, embeddings, cache,
+  vectors and Azure Search.
 - Service `.env.example` + root `.env.shared.example`; document precedence.
+- `run.sh` runs from the service directory so its `.env` and `../../.env.shared` resolve.
 
-**Risk:** medium — 20 call sites, but mechanical and type-checkable. **Verify:**
-`uv sync --package chat-api` installs no Qdrant/Cosmos/Mongo; service boots with only its
-own `.env`; a deliberately missing extra produces the friendly error.
+**Risk:** medium — many call sites, but mechanical and type-checkable. **Verify:**
+`uv sync --package chat-api` installs no Qdrant/Cosmos/Mongo/Azure Search; a second service
+installed with different extras gets the inverse closure from the same lockfile; the
+service boots with only its own `.env`, with precedence shared < `.env` < `.env.local` <
+process env proven by test; a deliberately missing extra produces the friendly error.
 
 > After this phase `base` is a genuine library: domain-free, dependency-light, consumable.
 

@@ -120,9 +120,7 @@ async def send_message(
     execution_context = ExecutionContext()
     execution_context.start_debug_trace()
 
-    chat_history_service = ChatHistoryService(
-        ChatHistoryConfig(), SqlChatHistoryStore
-    )
+    chat_history_service = ChatHistoryService(ChatHistoryConfig(), SqlChatHistoryStore)
     logger = ConsoleLoggerService()
 
     conversation = await ConversationStore().aget_for_user(

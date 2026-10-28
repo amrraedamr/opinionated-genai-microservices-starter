@@ -1,13 +1,18 @@
 from typing import Any, Awaitable, cast
 
-from redis import Redis
-from redis.asyncio import Redis as AsyncRedis
-from redis.asyncio.connection import ConnectionPool as AsyncConnectionPool
-from redis.connection import ConnectionPool
-from redis.exceptions import RedisError
+from base.tools.errors import MissingExtraError
+
+try:
+    from redis import Redis
+    from redis.asyncio import Redis as AsyncRedis
+    from redis.asyncio.connection import ConnectionPool as AsyncConnectionPool
+    from redis.connection import ConnectionPool
+    from redis.exceptions import RedisError
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("redis", "redis", feature="RedisClient") from exc
 
 from base.services.common.meta import Singleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 
 
 class RedisClient(metaclass=Singleton):
@@ -17,17 +22,17 @@ class RedisClient(metaclass=Singleton):
     """
 
     def __init__(self) -> None:
-        self._url = settings.redis_url
+        self._url = get_settings().redis_url
         if not self._url:
             raise ValueError("redis_url must be configured in Settings")
 
-        self._ssl_cert_reqs = settings.redis_ssl_cert_reqs
-        self._max_connections = settings.redis_max_connections
-        self._socket_timeout = settings.redis_socket_timeout
-        self._socket_connect_timeout = settings.redis_socket_connect_timeout
-        self._retry_on_timeout = settings.redis_retry_on_timeout
-        self._health_check_interval = settings.redis_health_check_interval
-        self._decode_responses = settings.redis_decode_responses
+        self._ssl_cert_reqs = get_settings().redis_ssl_cert_reqs
+        self._max_connections = get_settings().redis_max_connections
+        self._socket_timeout = get_settings().redis_socket_timeout
+        self._socket_connect_timeout = get_settings().redis_socket_connect_timeout
+        self._retry_on_timeout = get_settings().redis_retry_on_timeout
+        self._health_check_interval = get_settings().redis_health_check_interval
+        self._decode_responses = get_settings().redis_decode_responses
 
         self._sync_pool: ConnectionPool | None = None
         self._async_pool: AsyncConnectionPool | None = None

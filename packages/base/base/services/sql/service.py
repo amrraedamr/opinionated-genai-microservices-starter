@@ -1,20 +1,32 @@
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
+from typing import cast
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from base.tools.errors import MissingExtraError
+
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("sql", "sqlalchemy", feature="SQLService") from exc
 
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend
 from base.services.common.meta import SingletonABC
-from base.services.configuration import settings
+from base.services.configuration import get_settings
 from base.services.sql import AbstractSQLService
+from base.services.sql.protocol import SupportsSQLConfig
 
 
 class SQLService(AbstractSQLService, metaclass=SingletonABC):
-    def __init__(self) -> None:
-        self._backend: SQLBackend = SQLBackend(settings.sql_backend)
-        self._client: SQLClient = SQLClient(self._backend)
+    def __init__(self, config: SupportsSQLConfig | None = None) -> None:
+        self._config: SupportsSQLConfig = config or cast(
+            SupportsSQLConfig, get_settings()
+        )
+        self._backend: SQLBackend = SQLBackend(self._config.sql_backend)
+        self._client: SQLClient = SQLClient(
+            self._backend, self._config, _key=self._backend.value
+        )
 
     @contextmanager
     def _get_session(self) -> Generator[Session, None, None]:

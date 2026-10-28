@@ -29,6 +29,9 @@ ENV/
 .env
 .env.*
 !.env.example
+# `.env.*` would otherwise swallow committed templates such as
+# `.env.shared.example`, since `!.env.example` only un-ignores that exact name.
+!.env.*.example
 
 # Keys & certificates
 keys/

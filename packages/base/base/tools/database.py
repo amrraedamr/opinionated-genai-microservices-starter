@@ -1,8 +1,13 @@
 from collections.abc import Sequence
 from typing import Any, TypeVar
 
-from sqlalchemy.engine import Result, Row
-from sqlalchemy.engine.row import RowMapping
+from base.tools.errors import MissingExtraError
+
+try:
+    from sqlalchemy.engine import Result, Row
+    from sqlalchemy.engine.row import RowMapping
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("sql", "sqlalchemy", feature="SQL helpers") from exc
 
 _T = TypeVar("_T")
 

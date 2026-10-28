@@ -12,7 +12,7 @@ from base.capabilities import Capability
 from base.models.definitions.health import ProbeStatus
 from base.models.view_models.health import HealthReport, ProbeResult
 from base.services.common.meta import Stored, scope_id
-from base.services.configuration import Settings
+from base.services.configuration import CoreSettings
 from base.services.logging.console import ConsoleLoggerService
 from base.tools.exception_handlers import AppExceptionHandler
 from base.tools.routers import init_routers
@@ -54,7 +54,7 @@ async def _run_probe(capability: Capability) -> ProbeResult:
 
 def create_app(
     *,
-    settings: Settings,
+    settings: CoreSettings,
     routers: ModuleType | None = None,
     prefix: str = "/api",
     capabilities: Sequence[Capability] = (),

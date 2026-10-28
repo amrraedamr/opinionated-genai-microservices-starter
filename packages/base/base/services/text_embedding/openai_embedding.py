@@ -1,11 +1,17 @@
 from httpx import Timeout
-from openai import (
-    AsyncOpenAI,
-    DefaultAsyncHttpxClient,
-    DefaultHttpxClient,
-    OpenAI,
-)
-from openai.types import CreateEmbeddingResponse
+
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai import (
+        AsyncOpenAI,
+        DefaultAsyncHttpxClient,
+        DefaultHttpxClient,
+        OpenAI,
+    )
+    from openai.types import CreateEmbeddingResponse
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="OpenAIEmbeddingService") from exc
 
 from base.models.definitions.model import ProviderType
 from base.models.view_models.llm_exception import LLMConfigError

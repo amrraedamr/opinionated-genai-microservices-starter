@@ -276,38 +276,52 @@ dependencies = [
     "pydantic[email]>=2.12.5,<3",
     "pydantic-settings>=2.13.1,<3",
     "httpx[http2]>=0.28.1,<0.29",
+    "requests>=2.32.5,<3",
     "pyhumps>=3.8.0,<4",
     "colorlog>=6.10.1,<7",
-    "sse-starlette>=3.2.0,<4",
 ]
 
 [project.optional-dependencies]
 server   = ["uvicorn[standard]>=0.41.0,<0.42", "gunicorn>=25.1.0,<26"]
 sql      = ["sqlalchemy>=2.0.47,<3", "alembic>=1.18.4,<2",
             "sqlalchemy-utils>=0.42.1,<0.43", "greenlet>=3.3.2,<4"]
+sqlite   = ["aiosqlite>=0.22.1,<0.23"]
 postgres = ["asyncpg>=0.31.0,<0.32", "psycopg2-binary>=2.9.11,<3"]
 mysql    = ["aiomysql>=0.3.2,<0.4", "pymysql>=1.1.2,<2"]
-sqlite   = ["aiosqlite>=0.22.1,<0.23"]
 auth     = ["pyjwt>=2.11.0,<3", "argon2-cffi>=25.1.0,<26", "cryptography>=46.0.5,<47"]
 llm      = ["openai>=2.24.0,<3", "tiktoken>=0.12.0,<0.13"]
 redis    = ["redis>=7.2.1,<8"]
 mongo    = ["pymongo>=4.16.0,<5"]
 vectors  = ["qdrant-client>=1.17.0,<2"]
+sse      = ["sse-starlette>=3.2.0,<4"]
 azure    = ["azure-identity>=1.25.2,<2", "azure-keyvault-secrets>=4.10.0,<5",
             "azure-storage-blob>=12.28.0,<13", "azure-cosmos>=4.15.0,<5",
             "azure-search-documents>=11.6.0,<12"]
-otel     = ["opentelemetry-sdk", "opentelemetry-exporter-otlp",
-            "opentelemetry-instrumentation-fastapi",
-            "opentelemetry-instrumentation-httpx"]
 ```
+
+Notes from doing it:
+
+- **`sse-starlette` is an extra, not core.** Once `main.py` moved out, nothing in `base`
+  imported it; only the service's SSE endpoints do.
+- **`requests` stays in core** — `HttpRequestService` uses it alongside `httpx`.
+- **`aiohttp` and `certifi` were removed entirely.** Nothing imported either.
+- **No `otel` extra yet.** There is no instrumentation code to install it for; it lands
+  with the correlation-ID work in phase 6.
 
 Services then declare intent legibly:
 
 ```toml
+# chat-api          → base[server,sql,sqlite,postgres,auth,llm,redis,sse]
 # identity          → base[server,sql,postgres,auth,redis]
-# chat-api          → base[server,sql,postgres,llm,redis,auth]
 # ingestion-worker  → base[sql,postgres,llm,vectors,mongo]   # no server extra
 ```
+
+Measured, not assumed: with `chat-api` installed into its own environment, its
+`site-packages` contains `asyncpg, gunicorn, httpx, openai, redis, sqlalchemy, tiktoken,
+uvicorn` and **no** `qdrant_client`, `pymongo`, `azure*` or `aiomysql`. A probe service
+declaring `base[vectors,mongo]` gets the exact inverse — `httpx, pymongo, qdrant_client`
+and no `openai`, `redis`, `sqlalchemy` or `gunicorn` — with both resolving to the identical
+`httpx` build from the single root lockfile.
 
 ### Guarding a missing extra
 
@@ -320,6 +334,18 @@ except ModuleNotFoundError as exc:   # pragma: no cover
     raise MissingExtraError("vectors", "qdrant-client") from exc
 ```
 
-`MissingExtraError` renders as: *"VectorSearchService requires the 'vectors' extra. Add
-`base[vectors]` to this service's pyproject.toml."* Ruff's `I` ruleset is already enabled,
-so import hygiene stays enforced.
+`MissingExtraError` renders as: *"QdrantClient requires the 'vectors' extra. Add
+`base[vectors]` to this service's pyproject.toml (installs qdrant-client)."* Ruff's `I`
+ruleset is already enabled, so import hygiene stays enforced.
+
+Two refinements the implementation needed:
+
+- **`base/tools/serializers.py` degrades instead of raising.** It is reachable from
+  `hash_args` → `KeyedSingleton`, so it is effectively core. Raising there would make
+  `sqlalchemy` a hard dependency of everything. Instead the `DeclarativeBase` encoder is
+  registered only when the `sql` extra is present; a service with no SQLAlchemy has no
+  declarative models to encode anyway.
+- **SQL drivers are loaded by URL, not by import**, so a missing `postgres`/`mysql`/`sqlite`
+  extra would surface as a SQLAlchemy driver error rather than a `MissingExtraError`.
+  `SQLClient` therefore probes for the selected backend's drivers up front and raises the
+  named error itself.

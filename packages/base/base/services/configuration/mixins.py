@@ -1,48 +1,34 @@
+"""One mixin per optional subsystem, mirroring the dependency extras.
+
+A service inherits a mixin only if it uses that subsystem. Field names are
+lifted unchanged from the original single `Settings` class, so existing `.env`
+files and deployment variables keep working.
+"""
+
 from typing import Literal
 
-from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, BaseModel, Field
 
-from base.services.common.meta import SingletonSettings
+# Auth
 
 
-class Settings(BaseSettings, metaclass=SingletonSettings):
-    """Typed app settings from process env and optional `.env`.
+class TokenVerificationMixin(BaseModel):
+    """Verify tokens. Does NOT issue them."""
 
-    Starter default: env-only. Deploy the same vars via App Service / Container Apps /
-    compose.
-
-    Optional later — Key Vault as a pydantic-settings source + pub/sub reload:
-      1. Implement `PydanticBaseSettingsSource` that reads secrets via
-         `AzureKeyVaultService` (prefix with `system_keyvault_tag`), mapping
-         `appconfig-sql-backend` → field `sql_backend`.
-      2. Override `Settings.settings_customise_sources` to insert that source
-         after env (so env still wins locally).
-      3. On reload: `Singleton._instances.pop(Settings, None)` then call
-         `Settings()` again (or `Settings.replace(new_instance)`), and publish
-         `CacheChannels.KEYVAULT_RELOAD` so other workers refresh. Subscribe in
-         app lifespan the same way `PromptLoader` does for `PROMPT_RELOAD`.
-    """
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        populate_by_name=True,
-    )
-
-    # App
-    app_name: str = "opinionated-genai-starter"
-    environment: str = "local"
-    max_gunicorn_workers: int = 2
-
-    # Auth
-    auth_private_key_path: str = "keys/private.pem"
     auth_public_key_path: str = "keys/public.pem"
+
+
+class TokenIssuingMixin(TokenVerificationMixin):
+    """Only a service that issues tokens should include this."""
+
+    auth_private_key_path: str = "keys/private.pem"
     access_token_expiry_seconds: int = 900
     refresh_token_expiry_seconds: int = 604800
 
-    # OAuth / Login-with-X (comma-separated provider names that are enabled)
+
+class OAuthSettingsMixin(BaseModel):
+    """Login-with-X. `oauth_providers` is a comma-separated list of enabled names."""
+
     oauth_providers: str = ""
     oauth_success_redirect: str = "http://localhost:3000/auth/callback"
     oauth_state_ttl_seconds: int = 600
@@ -71,8 +57,7 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     oauth_microsoft_client_id: str = ""
     oauth_microsoft_client_secret: str = ""
     oauth_microsoft_discovery_url: str = (
-        "https://login.microsoftonline.com/common/v2.0/"
-        ".well-known/openid-configuration"
+        "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
     )
     oauth_microsoft_scopes: str = "openid email profile"
     oauth_microsoft_redirect_uri: str = ""
@@ -99,7 +84,10 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     oauth_apple_scopes: str = "name email"
     oauth_apple_redirect_uri: str = ""
 
-    # Enterprise IdP resource server (accept IdP Bearer JWTs on the API)
+
+class IdpResourceServerMixin(BaseModel):
+    """Accept enterprise IdP access tokens on this API."""
+
     idp_resource_server_enabled: bool = False
     idp_issuer: str = ""
     idp_audience: str = ""
@@ -109,7 +97,11 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     idp_provider_name: str = "entra"
     idp_email_claim: str = "email"
 
-    # SQL
+
+# SQL
+
+
+class SQLSettingsMixin(BaseModel):
     sql_backend: Literal["sqlite", "mysql", "postgresql"] = "sqlite"
     sqlite_db_path: str = "database/app.db"
     db_pool_size: int = 10
@@ -118,7 +110,8 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     db_pool_recycle: int = 3600
     db_ssl_enabled: bool = True
 
-    # PostgreSQL
+
+class PostgresSettingsMixin(BaseModel):
     pg_host: str = ""
     pg_port: str = "5432"
     pg_database: str = ""
@@ -132,7 +125,8 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
         validation_alias=AliasChoices("POSTGRES_PASSWORD", "PG_PASSWORD"),
     )
 
-    # MySQL
+
+class MySQLSettingsMixin(BaseModel):
     mysql_host: str = ""
     mysql_database: str = ""
     mysql_username: str = Field(
@@ -144,7 +138,11 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
         validation_alias=AliasChoices("MYSQL_PASSWORD"),
     )
 
-    # Redis
+
+# Cache
+
+
+class RedisSettingsMixin(BaseModel):
     redis_url: str = ""
     redis_ssl_cert_reqs: str = ""
     redis_max_connections: int = 50
@@ -154,12 +152,17 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     redis_health_check_interval: int = 30
     redis_decode_responses: bool = True
 
-    # Cosmos DB
+
+# NoSQL
+
+
+class CosmosSettingsMixin(BaseModel):
     azure_cosmos_account_uri: str = ""
     azure_cosmos_account_key: str = ""
     azure_cosmos_database_name: str = ""
 
-    # MongoDB
+
+class MongoSettingsMixin(BaseModel):
     mongodb_username: str = Field(
         default="",
         validation_alias=AliasChoices("MONGODB_USER", "MONGODB_USERNAME"),
@@ -178,54 +181,71 @@ class Settings(BaseSettings, metaclass=SingletonSettings):
     mongodb_socket_timeout_ms: int = 30_000
     mongodb_server_selection_timeout_ms: int = 30_000
 
-    # Azure Blob
+
+# Storage and secrets
+
+
+class BlobSettingsMixin(BaseModel):
     azure_blob_account_url: str = ""
 
-    # Azure Key Vault — runtime secret API only (not a Settings backend; see class docstring)
+
+class KeyVaultSettingsMixin(BaseModel):
+    """Runtime secret API only — not a Settings backend. See `CoreSettings`."""
+
     keyvault_url: str = ""
     system_keyvault_tag: str = "appconfig"
     model_keyvault_tag: str = "modelconfig"
 
-    # Azure OpenAI LLM
+
+# LLM and embeddings
+
+
+class LLMSettingsMixin(BaseModel):
     azure_openai_api_version: str = ""
     azure_openai_llm_endpoint: str = ""
     azure_openai_llm_deployment_name: str = ""
     azure_openai_llm_api_key: str = ""
 
-    # Azure OpenAI Embeddings
+    openai_llm_endpoint: str = ""
+    openai_llm_model: str = ""
+    openai_llm_api_key: str = ""
+
+
+class EmbeddingSettingsMixin(BaseModel):
+    azure_openai_api_version: str = ""
     azure_openai_embedding_endpoint: str = ""
     azure_openai_embedding_deployment_name: str = ""
     azure_openai_embedding_api_key: str = ""
     azure_openai_embedding_dimensions: int = 3072
     azure_openai_embedding_batch_size: int = 2048
 
-    # OpenAI LLM
-    openai_llm_endpoint: str = ""
-    openai_llm_model: str = ""
-    openai_llm_api_key: str = ""
-
-    # OpenAI Embeddings
     openai_embedding_endpoint: str = ""
     openai_embedding_model: str = ""
     openai_embedding_api_key: str = ""
     openai_embedding_dimensions: int = 1536
     openai_embedding_batch_size: int = 2048
 
-    # Qdrant
+
+# Vector search
+
+
+class VectorSettingsMixin(BaseModel):
     qdrant_url: str = ""
     qdrant_grpc_port: int = 6334
     qdrant_prefer_grpc: bool = True
     qdrant_timeout: int = 30
     qdrant_api_key: str = ""
 
-    # Azure AI Search
+
+class AzureSearchSettingsMixin(BaseModel):
     azure_search_endpoint: str = ""
     azure_search_vector_field: str = "vector"
     azure_search_key_field: str = "id"
     azure_search_api_key: str = ""
 
-    # Prompts
+
+# Prompts
+
+
+class PromptSettingsMixin(BaseModel):
     load_prompts_from_db: bool = False
-
-
-settings = Settings()

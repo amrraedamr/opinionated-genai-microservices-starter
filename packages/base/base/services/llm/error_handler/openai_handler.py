@@ -4,20 +4,25 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
-from openai import (
-    APIConnectionError,
-    APIStatusError,
-    APITimeoutError,
-    AuthenticationError,
-    BadRequestError,
-    ConflictError,
-    InternalServerError,
-    NotFoundError,
-    OpenAIError,
-    PermissionDeniedError,
-    RateLimitError,
-    UnprocessableEntityError,
-)
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai import (
+        APIConnectionError,
+        APIStatusError,
+        APITimeoutError,
+        AuthenticationError,
+        BadRequestError,
+        ConflictError,
+        InternalServerError,
+        NotFoundError,
+        OpenAIError,
+        PermissionDeniedError,
+        RateLimitError,
+        UnprocessableEntityError,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="OpenAIErrorHandler") from exc
 
 from base.models.view_models.llm_exception import (
     LLMAuthError,

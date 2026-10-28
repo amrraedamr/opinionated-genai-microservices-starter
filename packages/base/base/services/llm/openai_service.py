@@ -1,35 +1,41 @@
 import time
 
 from httpx import Timeout
-from openai import (
-    AsyncOpenAI,
-    AsyncStream,
-    DefaultAsyncHttpxClient,
-    DefaultHttpxClient,
-    OpenAI,
-    OpenAIError,
-    Stream,
-)
-from openai.types.chat import (
-    ChatCompletion,
-    ChatCompletionMessage,
-    ChatCompletionMessageParam,
-    ChatCompletionStreamOptionsParam,
-    ParsedChatCompletion,
-)
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
-from openai.types.completion_usage import CompletionUsage
-from openai.types.responses import (
-    ParsedResponse,
-    Response,
-    ResponseCompletedEvent,
-    ResponseCreatedEvent,
-    ResponseIncompleteEvent,
-    ResponseInputParam,
-    ResponseStreamEvent,
-    ResponseTextDeltaEvent,
-    ResponseUsage,
-)
+
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai import (
+        AsyncOpenAI,
+        AsyncStream,
+        DefaultAsyncHttpxClient,
+        DefaultHttpxClient,
+        OpenAI,
+        OpenAIError,
+        Stream,
+    )
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionMessage,
+        ChatCompletionMessageParam,
+        ChatCompletionStreamOptionsParam,
+        ParsedChatCompletion,
+    )
+    from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+    from openai.types.completion_usage import CompletionUsage
+    from openai.types.responses import (
+        ParsedResponse,
+        Response,
+        ResponseCompletedEvent,
+        ResponseCreatedEvent,
+        ResponseIncompleteEvent,
+        ResponseInputParam,
+        ResponseStreamEvent,
+        ResponseTextDeltaEvent,
+        ResponseUsage,
+    )
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="OpenAIService") from exc
 
 from base.models.definitions.model import ProviderType
 from base.models.view_models import BaseModel

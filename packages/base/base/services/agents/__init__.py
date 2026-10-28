@@ -1,7 +1,12 @@
 from abc import abstractmethod
 from typing import Any, ClassVar
 
-from openai.types.responses import ResponseInputParam
+from base.tools.errors import MissingExtraError
+
+try:
+    from openai.types.responses import ResponseInputParam
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("llm", "openai", feature="AbstractAgent") from exc
 
 from base.models.definitions.canned_messages import CannedMessages
 from base.models.definitions.message import MessageRole

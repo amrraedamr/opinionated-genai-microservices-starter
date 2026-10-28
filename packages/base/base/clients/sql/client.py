@@ -1,51 +1,82 @@
+import importlib.util
 import ssl
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote_plus
 
-from sqlalchemy import QueuePool, create_engine
-from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import AsyncAdaptedQueuePool
+from base.tools.errors import MissingExtraError
+
+try:
+    from sqlalchemy import QueuePool, create_engine
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.ext.asyncio import (
+        AsyncEngine,
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+    from sqlalchemy.orm import Session, sessionmaker
+    from sqlalchemy.pool import AsyncAdaptedQueuePool
+except ModuleNotFoundError as exc:  # pragma: no cover
+    raise MissingExtraError("sql", "sqlalchemy", feature="SQLClient") from exc
 
 from base.models.definitions.database import SQLBackend
 from base.services.common.meta import KeyedSingleton
-from base.services.configuration import settings
+from base.services.configuration import get_settings
+from base.services.sql.protocol import SupportsSQLConfig
+
+_BACKEND_EXTRAS: dict[SQLBackend, tuple[str, str]] = {
+    SQLBackend.SQLITE: ("sqlite", "aiosqlite"),
+    SQLBackend.MYSQL: ("mysql", "aiomysql / pymysql"),
+    SQLBackend.POSTGRESQL: ("postgres", "asyncpg / psycopg2-binary"),
+}
 
 
 class SQLClient(metaclass=KeyedSingleton):
-    def __init__(self, backend: SQLBackend) -> None:
+    def __init__(
+        self, backend: SQLBackend, config: SupportsSQLConfig | None = None
+    ) -> None:
         self._backend: SQLBackend = backend
+        self._config: SupportsSQLConfig = config or cast(
+            SupportsSQLConfig, get_settings()
+        )
+        self._require_driver()
 
         self._sync_engine: Engine | None = None
         self._async_engine: AsyncEngine | None = None
         self._sync_session_maker: sessionmaker[Session] | None = None
         self._async_session_maker: async_sessionmaker[AsyncSession] | None = None
 
+    def _require_driver(self) -> None:
+        """Fail with the extra to install, not with SQLAlchemy's driver error."""
+        extra, distribution = _BACKEND_EXTRAS[self._backend]
+        for driver in (self._backend.sync_driver, self._backend.async_driver):
+            module = {"pysqlite": "sqlite3"}.get(driver, driver)
+            if importlib.util.find_spec(module) is None:
+                raise MissingExtraError(
+                    extra,
+                    distribution,
+                    feature=f"SQL backend {self._backend.value!r}",
+                )
+
     def _get_database_url(self, driver: str) -> str:
         match self._backend:
             case SQLBackend.SQLITE:
-                return f"sqlite+{driver}:///{settings.sqlite_db_path}"
+                return f"sqlite+{driver}:///{self._config.sqlite_db_path}"
             case SQLBackend.MYSQL:
-                username: str = quote_plus(settings.mysql_username)
-                password: str = quote_plus(settings.mysql_password)
+                username: str = quote_plus(self._config.mysql_username)
+                password: str = quote_plus(self._config.mysql_password)
                 return (
                     f"mysql+{driver}://{username}:{password}"
-                    f"@{settings.mysql_host}/{settings.mysql_database}"
+                    f"@{self._config.mysql_host}/{self._config.mysql_database}"
                 )
             case SQLBackend.POSTGRESQL:
-                username = quote_plus(settings.pg_username)
-                password = quote_plus(settings.pg_password)
+                username = quote_plus(self._config.pg_username)
+                password = quote_plus(self._config.pg_password)
                 return (
                     f"postgresql+{driver}://{username}:{password}"
-                    f"@{settings.pg_host}:{settings.pg_port}/{settings.pg_database}"
+                    f"@{self._config.pg_host}:{self._config.pg_port}/{self._config.pg_database}"
                 )
             case _:
                 raise ValueError(f"Unsupported SQL backend: {self._backend!r}")
@@ -56,10 +87,10 @@ class SQLClient(metaclass=KeyedSingleton):
                 return {"echo": False, "echo_pool": False}
             case SQLBackend.MYSQL | SQLBackend.POSTGRESQL:
                 return {
-                    "pool_size": settings.db_pool_size,
-                    "max_overflow": settings.db_max_overflow,
-                    "pool_timeout": settings.db_pool_timeout,
-                    "pool_recycle": settings.db_pool_recycle,
+                    "pool_size": self._config.db_pool_size,
+                    "max_overflow": self._config.db_max_overflow,
+                    "pool_timeout": self._config.db_pool_timeout,
+                    "pool_recycle": self._config.db_pool_recycle,
                     "pool_pre_ping": True,
                     "pool_use_lifo": True,
                     "echo": False,
@@ -78,7 +109,7 @@ class SQLClient(metaclass=KeyedSingleton):
                     "read_timeout": 300,
                     "write_timeout": 300,
                 }
-                if settings.db_ssl_enabled:
+                if self._config.db_ssl_enabled:
                     args["ssl"] = ssl.create_default_context()
                 return args
             case SQLBackend.POSTGRESQL:
@@ -86,9 +117,9 @@ class SQLClient(metaclass=KeyedSingleton):
                     "connect_timeout": 10,
                     "options": "-c statement_timeout=300000",
                 }
-                if settings.db_ssl_enabled:
+                if self._config.db_ssl_enabled:
                     args["sslmode"] = "require"
-                    args["sslrootcert"] = settings.pg_ssl_root_cert
+                    args["sslrootcert"] = self._config.pg_ssl_root_cert
                 return args
             case _:
                 raise ValueError(f"Unsupported SQL backend: {self._backend!r}")
@@ -99,12 +130,12 @@ class SQLClient(metaclass=KeyedSingleton):
                 return {"check_same_thread": False}
             case SQLBackend.MYSQL:
                 args: dict[str, Any] = {"connect_timeout": 10}
-                if settings.db_ssl_enabled:
+                if self._config.db_ssl_enabled:
                     args["ssl"] = ssl.create_default_context()
                 return args
             case SQLBackend.POSTGRESQL:
                 args = {"timeout": 10}
-                if settings.db_ssl_enabled:
+                if self._config.db_ssl_enabled:
                     args["ssl"] = ssl.create_default_context()
                 return args
             case _:
