@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, ForeignKey, Index, String
+from sqlalchemy import JSON, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import UUIDType
 
@@ -24,10 +24,8 @@ class ConversationDTO(TimestampMixin, ChatBase):
         UUIDType(binary=True), primary_key=True, default=uuid.uuid4, init=False
     )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUIDType(binary=True),
-        ForeignKey(f"{DatabaseTable.USER}.id"),
-    )
+    # Owned by the identity service. Opaque reference, no ForeignKey.
+    user_id: Mapped[uuid.UUID] = mapped_column(UUIDType(binary=True))
 
     title: Mapped[str | None] = mapped_column(String(255), default=None)
     meta: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

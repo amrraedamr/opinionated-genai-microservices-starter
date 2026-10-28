@@ -10,11 +10,11 @@ from base.services.auth.tokens import InvalidSignedPayload
 from base.services.common.meta import Singleton
 from base.tools.errors import raise_error
 from base.tools.security import pkce_pair
-from chat_api.models.orm.user import UserDTO
-from chat_api.models.orm.user_identity import UserIdentityDTO
-from chat_api.settings import settings
-from chat_api.stores.user import UserStore
-from chat_api.stores.user_identity import UserIdentityStore
+from identity.models.orm.user import UserDTO
+from identity.models.orm.user_identity import UserIdentityDTO
+from identity.settings import settings
+from identity.stores.user import UserStore
+from identity.stores.user_identity import UserIdentityStore
 
 
 class OAuthService(metaclass=Singleton):
@@ -94,7 +94,7 @@ class OAuthService(metaclass=Singleton):
         return f"{base}{separator}{urlencode({'code': exchange_code})}"
 
     async def aexchange_code(self, code: str) -> TokenPair:
-        from chat_api.services.auth import AuthService
+        from identity.services.auth import AuthService
 
         payload = self._decode_signed(code, expected_type="oauth_code")
         user_id = str(payload.get("user_id") or "")

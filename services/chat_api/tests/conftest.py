@@ -30,7 +30,7 @@ def _write_keypair(directory: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]
 
 
 @pytest.fixture(scope="session")
-def app_environment() -> Iterator[None]:
+def app_environment() -> Iterator[pathlib.Path]:
     """A migrated SQLite database and a signing keypair, for the session."""
     with tempfile.TemporaryDirectory() as tmp:
         directory = pathlib.Path(tmp)
@@ -57,11 +57,21 @@ def app_environment() -> Iterator[None]:
             capture_output=True,
             env=os.environ.copy(),
         )
-        yield
+        yield private
 
 
 @pytest.fixture(scope="session")
-def client(app_environment: None):
+def signing_key(app_environment: pathlib.Path) -> str:
+    """Private key of the issuer chat_api trusts.
+
+    chat_api composes TokenVerificationMixin only and cannot mint tokens, so a
+    test stands in for the identity service and signs them itself.
+    """
+    return app_environment.read_text()
+
+
+@pytest.fixture(scope="session")
+def client(app_environment: pathlib.Path):
     from fastapi.testclient import TestClient
 
     from chat_api.app import app

@@ -11,8 +11,6 @@ from sqlalchemy_utils.types.uuid import UUIDType
 import chat_api.models.orm.chat_history_message  # noqa: F401, E402
 import chat_api.models.orm.conversation  # noqa: F401, E402
 import chat_api.models.orm.prompt  # noqa: F401, E402
-import chat_api.models.orm.user  # noqa: F401, E402
-import chat_api.models.orm.user_identity  # noqa: F401, E402
 from alembic import context
 from base.clients.sql.client import SQLClient
 from base.models.definitions.database import SQLBackend

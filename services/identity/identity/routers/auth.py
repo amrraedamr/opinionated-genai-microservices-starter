@@ -5,8 +5,8 @@ from base.models.definitions.errors import AuthErrors
 from base.models.view_models import BaseResponse
 from base.tools.errors import raise_error
 from base.tools.security import PasswordHashingService
-from chat_api.models.orm.user import UserDTO
-from chat_api.models.view_models.auth import (
+from identity.models.orm.user import UserDTO
+from identity.models.view_models.auth import (
     LoginRequest,
     LoginResponse,
     OAuthExchangeRequest,
@@ -16,10 +16,10 @@ from chat_api.models.view_models.auth import (
     RefreshToken,
     RegisterRequest,
 )
-from chat_api.models.view_models.user import CreateUserResponse
-from chat_api.services.auth import AuthService
-from chat_api.services.auth.oauth import OAuthService
-from chat_api.stores.user import UserStore
+from identity.models.view_models.user import CreateUserResponse
+from identity.services.auth import AuthService
+from identity.services.auth.oauth import OAuthService
+from identity.stores.user import UserStore
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

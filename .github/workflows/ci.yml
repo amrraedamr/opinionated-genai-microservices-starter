@@ -19,6 +19,8 @@ jobs:
       - run: uv run ruff check .
       - name: Architectural boundaries
         run: uv run python tools/boundary_lint.py
+      - name: Tests
+        run: uv run python tools/run_tests.py
 
   detect:
     name: Affected services
@@ -56,9 +58,10 @@ jobs:
         env:
           UV_PROJECT_ENVIRONMENT: .venvs/${{ matrix.service }}
       - name: Test
+        working-directory: services/${{ matrix.service }}
         run: uv run --package ${{ matrix.service }} pytest -q
         env:
-          UV_PROJECT_ENVIRONMENT: .venvs/${{ matrix.service }}
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.venvs/${{ matrix.service }}
       - name: Build image
         run: |
           docker build -f docker/service.Dockerfile \

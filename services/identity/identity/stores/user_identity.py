@@ -8,7 +8,7 @@ from base.services.common.meta import SingletonABC
 from base.services.sql.service import SQLService
 from base.services.store import AbstractStore
 from base.tools.database import SQLResultFormats
-from chat_api.models.orm.user_identity import UserIdentityDTO
+from identity.models.orm.user_identity import UserIdentityDTO
 
 
 class UserIdentityStore(AbstractStore[UserIdentityDTO], metaclass=SingletonABC):

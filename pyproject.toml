@@ -25,6 +25,6 @@ lint.ignore = ["E501"]
 lint.extend-select = ["I"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages", "services"]
+testpaths = ["packages"]
 asyncio_mode = "auto"
 addopts = "-q"

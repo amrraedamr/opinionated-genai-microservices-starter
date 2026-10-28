@@ -6,11 +6,11 @@ from base.models.definitions.errors import AuthErrors
 from base.services.auth import Principal, TokenIssuer, TokenPair, TokenVerifier
 from base.services.common.meta import Singleton
 from base.tools.errors import raise_error
-from chat_api.models.orm.user import UserDTO
-from chat_api.models.view_models.auth import RefreshToken
-from chat_api.services.auth.oauth import OAuthService
-from chat_api.settings import settings
-from chat_api.stores.user import UserStore
+from identity.models.orm.user import UserDTO
+from identity.models.view_models.auth import RefreshToken
+from identity.services.auth.oauth import OAuthService
+from identity.settings import settings
+from identity.stores.user import UserStore
 
 
 class AuthService(metaclass=Singleton):

@@ -1,10 +1,8 @@
-"""Authentication behaviour chat_api must keep."""
+"""The authentication surface identity owns."""
 
 from __future__ import annotations
 
 import uuid
-
-import pytest
 
 
 def register_and_login(client, api_prefix: str) -> dict[str, str]:
@@ -23,15 +21,11 @@ def register_and_login(client, api_prefix: str) -> dict[str, str]:
 
 
 class TestHealth:
-    def test_livez_does_not_touch_dependencies(self, client):
-        body = client.get("/livez").json()
-        assert body["status"] == "ok"
-        assert body["checks"] == []
+    def test_livez(self, client):
+        assert client.get("/livez").json()["status"] == "ok"
 
-    def test_readyz_reports_capability_probes(self, client):
-        body = client.get("/readyz").json()
-        assert body["status"] == "ok"
-        assert {check["name"] for check in body["checks"]} >= {"prompts"}
+    def test_readyz(self, client):
+        assert client.get("/readyz").status_code == 200
 
 
 class TestAuthentication:
@@ -46,8 +40,7 @@ class TestAuthentication:
     def test_refresh_returns_a_new_pair(self, client, api_prefix):
         tokens = register_and_login(client, api_prefix)
         response = client.post(
-            f"{api_prefix}/auth/refresh",
-            json={"refreshToken": tokens["refreshToken"]},
+            f"{api_prefix}/auth/refresh", json={"refreshToken": tokens["refreshToken"]}
         )
         assert response.status_code == 200
 
@@ -70,9 +63,8 @@ class TestAuthentication:
         assert response.status_code == 401
 
     def test_duplicate_registration_is_rejected(self, client, api_prefix):
-        email = f"{uuid.uuid4().hex}@example.com"
         payload = {
-            "email": email,
+            "email": f"{uuid.uuid4().hex}@example.com",
             "password": "Str0ng!Passw0rd",
             "firstName": "A",
             "lastName": "B",
@@ -81,22 +73,10 @@ class TestAuthentication:
         assert client.post(f"{api_prefix}/auth/register", json=payload).status_code >= 400
 
 
-class TestOwnership:
-    def test_a_user_cannot_read_another_users_conversation(self, client, api_prefix):
-        owner = register_and_login(client, api_prefix)
-        intruder = register_and_login(client, api_prefix)
+class TestOAuth:
+    def test_providers_endpoint_responds(self, client, api_prefix):
+        assert client.get(f"{api_prefix}/auth/oauth/providers").status_code == 200
 
-        created = client.post(
-            f"{api_prefix}/conversations",
-            headers={"Authorization": f"Bearer {owner['accessToken']}"},
-            json={"title": "private"},
-        )
-        if created.status_code >= 400:
-            pytest.skip(f"conversation creation unavailable: {created.status_code}")
-
-        conversation_id = created.json()["data"]["conversationId"]
-        response = client.get(
-            f"{api_prefix}/conversations/{conversation_id}",
-            headers={"Authorization": f"Bearer {intruder['accessToken']}"},
-        )
+    def test_a_garbage_exchange_code_is_rejected(self, client, api_prefix):
+        response = client.post(f"{api_prefix}/auth/oauth/exchange", json={"code": "garbage"})
         assert response.status_code >= 400

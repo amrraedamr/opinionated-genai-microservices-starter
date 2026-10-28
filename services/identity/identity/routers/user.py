@@ -4,15 +4,15 @@ from base.models.definitions.errors import AuthErrors
 from base.models.view_models import BaseResponse
 from base.tools.errors import raise_error
 from base.tools.security import PasswordHashingService
-from chat_api.models.orm.user import UserDTO
-from chat_api.models.view_models.user import (
+from identity.models.orm.user import UserDTO
+from identity.models.view_models.user import (
     DeleteUserResponse,
     EditUserRequest,
     EditUserResponse,
     GetUserResponse,
 )
-from chat_api.services.auth.dependencies import validate_user_dependency
-from chat_api.stores.user import UserStore
+from identity.services.auth.dependencies import validate_user_dependency
+from identity.stores.user import UserStore
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

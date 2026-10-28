@@ -21,33 +21,42 @@ import subprocess
 import sys
 
 BASE = "packages/base/base/"
-SERVICE = "services/chat_api/chat_api/"
+CHAT_API = "services/chat_api/chat_api/"
+IDENTITY = "services/identity/identity/"
+
+# Paths the identity service owns.
+IDENTITY_EXACT = {
+    "models/orm/user.py",
+    "models/orm/user_identity.py",
+    "models/view_models/auth.py",
+    "models/view_models/user.py",
+    "routers/auth.py",
+    "routers/user.py",
+    "services/auth/__init__.py",
+    "services/auth/dependencies.py",
+    "services/auth/oauth/__init__.py",
+    "services/store/user.py",
+    "services/store/user_identity.py",
+}
 
 # Paths chat_api owns. Everything else under base/ is shared infrastructure.
-SERVICE_EXACT = {
+CHAT_API_EXACT = {
     "models/definitions/database.py",
     "models/orm/chat_history_message.py",
     "models/orm/conversation.py",
     "models/orm/prompt.py",
-    "models/orm/user.py",
-    "models/orm/user_identity.py",
-    "models/view_models/auth.py",
     "models/view_models/chat.py",
     "models/view_models/conversation.py",
-    "models/view_models/user.py",
     "services/agents/test.py",
-    "services/auth/__init__.py",
-    "services/auth/dependencies.py",
-    "services/auth/oauth/__init__.py",
 }
-SERVICE_PREFIXES = ("routers/", "services/prompt/templates/")
+CHAT_API_PREFIXES = ("routers/", "services/prompt/templates/")
 
 # Renamed during the split.
 RENAMES = {"services/store/": "stores/"}
 
 # Restructured beyond a path change; a patch touching these needs a human.
 MANUAL = {
-    "main.py": "split into packages/base/base/app.py and services/chat_api/chat_api/app.py",
+    "main.py": "split into packages/base/base/app.py and each service's app.py",
     "services/configuration/settings.py": "split into configuration/core.py and configuration/mixins.py",
     "services/auth/auths.py": "removed; the bearer scheme lives in base/services/auth/bearer.py",
 }
@@ -62,12 +71,15 @@ def map_path(path: str) -> tuple[str | None, str | None]:
     rel = path[len("base/") :]
     if rel in MANUAL:
         return None, MANUAL[rel]
+    owner = IDENTITY if rel in IDENTITY_EXACT else None
+    if owner is None and (rel in CHAT_API_EXACT or rel.startswith(CHAT_API_PREFIXES)):
+        owner = CHAT_API
+    if owner is None and not rel.startswith("services/store/"):
+        return BASE + rel, None
     for old, new in RENAMES.items():
         if rel.startswith(old):
-            return SERVICE + new + rel[len(old) :], None
-    if rel in SERVICE_EXACT or rel.startswith(SERVICE_PREFIXES):
-        return SERVICE + rel, None
-    return BASE + rel, None
+            return (owner or CHAT_API) + new + rel[len(old) :], None
+    return (owner or CHAT_API) + rel, None
 
 
 def rewrite(patch: str) -> tuple[str, list[str]]:

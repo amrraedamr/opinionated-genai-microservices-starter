@@ -4,15 +4,13 @@ from pydantic_settings import SettingsConfigDict
 
 from base.services.configuration.core import CoreSettings
 from base.services.configuration.mixins import (
-    IdpResourceServerMixin,
     LLMSettingsMixin,
-    OAuthSettingsMixin,
     PostgresSettingsMixin,
     PromptSettingsMixin,
     RedisSettingsMixin,
     ServerSettingsMixin,
     SQLSettingsMixin,
-    TokenIssuingMixin,
+    TokenVerificationMixin,
 )
 
 
@@ -23,11 +21,7 @@ class ChatApiSettings(
     PostgresSettingsMixin,
     RedisSettingsMixin,
     LLMSettingsMixin,
-    # chat_api still issues tokens and owns users. Phase 5 moves that to the
-    # identity service, at which point this drops to TokenVerificationMixin.
-    TokenIssuingMixin,
-    OAuthSettingsMixin,
-    IdpResourceServerMixin,
+    TokenVerificationMixin,
     PromptSettingsMixin,
 ):
     model_config = SettingsConfigDict(

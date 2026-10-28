@@ -3,8 +3,8 @@
 from fastapi import Depends
 
 from base.services.auth import Principal, principal_dependency
-from chat_api.models.orm.user import UserDTO
-from chat_api.services.auth import AuthService
+from identity.models.orm.user import UserDTO
+from identity.services.auth import AuthService
 
 
 async def avalidate_user(principal: Principal = principal_dependency) -> UserDTO:

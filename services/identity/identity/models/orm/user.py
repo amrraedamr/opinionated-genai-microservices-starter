@@ -4,11 +4,11 @@ from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy_utils import UUIDType
 
-from chat_api.models.definitions.database import DatabaseTable
-from chat_api.models.orm import ChatBase, TimestampMixin
+from identity.models.definitions.database import DatabaseTable
+from identity.models.orm import IdentityBase, TimestampMixin
 
 
-class UserDTO(TimestampMixin, ChatBase):
+class UserDTO(TimestampMixin, IdentityBase):
     __tablename__ = DatabaseTable.USER
 
     __table_args__ = (

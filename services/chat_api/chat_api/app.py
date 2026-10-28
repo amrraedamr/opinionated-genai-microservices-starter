@@ -11,13 +11,11 @@ from sse_starlette.sse import EventSourceResponse  # noqa: E402
 from base.app import create_app  # noqa: E402
 from base.capabilities.prompts import Prompts  # noqa: E402
 from base.capabilities.terminal_capture import TerminalCapture  # noqa: E402
+from base.services.auth import principal_dependency  # noqa: E402
 from base.services.logging.tee_stream import TerminalCaptureService  # noqa: E402
 from base.tools.stream import StreamIterator  # noqa: E402
 from chat_api import routers  # noqa: E402
 from chat_api.prompts import templates  # noqa: E402
-from chat_api.services.auth.dependencies import (  # noqa: E402
-    validate_user_dependency,
-)
 
 app = create_app(
     settings=settings,
@@ -33,7 +31,7 @@ app = create_app(
 
 @app.post(
     "/logs",
-    dependencies=[validate_user_dependency],
+    dependencies=[principal_dependency],
 )
 async def get_logs() -> EventSourceResponse:
     capture_service = TerminalCaptureService(settings.service_name)
