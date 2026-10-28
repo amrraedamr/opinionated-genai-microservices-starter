@@ -1,3 +1,6 @@
+from collections.abc import Sequence
+from types import ModuleType
+
 from fastapi import FastAPI
 
 from base.capabilities import BaseCapability
@@ -11,8 +14,11 @@ class Prompts(BaseCapability):
 
     name = "prompts"
 
+    def __init__(self, templates: Sequence[ModuleType] = ()) -> None:
+        self._templates = tuple(templates)
+
     async def startup(self, app: FastAPI) -> None:
-        await PromptLoader().initialize()
+        await PromptLoader().initialize(self._templates)
 
     async def shutdown(self, app: FastAPI) -> None:
         await PromptLoader().shutdown()

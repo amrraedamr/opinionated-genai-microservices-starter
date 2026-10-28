@@ -1,5 +1,6 @@
-from base.tools.webserver import run_webserver
+"""Opinionated FastAPI GenAI foundation library.
 
-
-def start():
-    run_webserver(app_path="base.main:app")
+`base` is a library, not an application. It has no entrypoint of its own —
+a service composes one with `base.app.create_app` and serves it with
+`base.tools.webserver.run_webserver`.
+"""

@@ -40,11 +40,23 @@ Derived from which modules import `base.models.orm` (the domain marker).
 | --- | --- | --- |
 | `models/orm/user.py`, `user_identity.py` | `services/identity/` | Concrete tables owned by one service |
 | `models/orm/conversation.py`, `chat_history_message.py` | `services/chat-api/` | Concrete tables owned by one service |
-| `models/orm/prompt.py` | Whichever service owns prompt storage | Concrete table |
+| `models/orm/prompt.py` | Whichever service owns prompt storage | Concrete table (two: `prompt` and `active_prompt`) |
+| `models/definitions/database.py::DatabaseTable` | Owning service | Table *names* are part of a service's schema, not shared infrastructure |
 | `services/store/{user,user_identity}.py` | `services/identity/` | Bound to those tables |
 | `services/store/conversation.py`, `store/chat_history/sql.py` | `services/chat-api/` | Bound to those tables |
 | `services/auth/` (the user-lookup half) | `services/identity/` | See [doc 05](05-service-contracts.md) |
+| `services/prompt/templates/` | Each service | `base` ships the loading mechanism; prompts are content |
+| `services/agents/test.py` | `services/chat-api/` | A concrete agent is application code; `AbstractAgent` stays |
+| `models/view_models/{auth,user,conversation,chat}.py` | Owning service | Request/response models for the routers that move with them |
 | `routers/{auth,conversation,user}.py` | `identity` / `chat-api` | Application surface |
+
+> **Sequencing note.** `services/auth/` cannot be split at the same time its tables move:
+> it imports `UserDTO` and `UserStore` directly. Phase 2 therefore moves **all** of
+> `services/auth/` into `chat-api` so `base` is domain-free immediately, and phase 5
+> extracts the stateless verification half back into `base` as part of the identity split.
+> `models/view_models/chat_history.py` stays in `base` — `StoredMessage`, `ConversationId`
+> and friends are generic LLM-chat types that `ChatHistoryService` and `AbstractAgent`
+> depend on, not this application's domain.
 
 ### Splits in two
 
@@ -55,10 +67,9 @@ Derived from which modules import `base.models.orm` (the domain marker).
 
 ---
 
-## Two side effects that must be removed
+## Three side effects that must be removed
 
 These are load-bearing today and will silently break per-service isolation.
-
 ### 1. Automatic table import
 
 ```python
@@ -80,8 +91,12 @@ beats magic exactly when isolation matters.
 ```python
 # services/chat-api/alembic/env.py
 from chat_api.models.orm import ChatBase
-import chat_api.models.orm.conversation            # noqa: F401
+
 import chat_api.models.orm.chat_history_message    # noqa: F401
+import chat_api.models.orm.conversation            # noqa: F401
+import chat_api.models.orm.prompt                  # noqa: F401
+import chat_api.models.orm.user                    # noqa: F401
+import chat_api.models.orm.user_identity           # noqa: F401
 
 target_metadata = ChatBase.metadata
 ```
@@ -98,6 +113,38 @@ AppExceptionHandler().register(app)
 
 Everything happens at import time with hardcoded routers, a hardcoded prefix, and a
 hardcoded wide-open CORS policy. A second service cannot reuse any of it.
+
+### 3. Hardcoded prompt templates and a hardcoded chat-history store
+
+Two more "the library knows which application it is" couplings, found while doing the
+extraction:
+
+```python
+# base/services/prompt/loader.py — current
+import base.services.prompt.templates as pkg
+...
+for info in pkgutil.walk_packages(pkg.__path__, prefix=f"{pkg.__name__}."):
+```
+
+```python
+# base/services/chat_history/__init__.py — current
+self._store: SqlChatHistoryStore = SqlChatHistoryStore()
+```
+
+The first makes `base` the only place prompts can live; the second binds a `base` service
+to a concrete table, contradicting the `ChatHistoryStore` docstring that already says
+*"ChatHistoryService depends on this type, not on AbstractSequenceStore directly"*.
+
+**Replacement:** `PromptLoader.initialize(template_packages)` takes the service's own
+packages, and the templates move out of `base`. `ChatHistoryService(config, store)` takes
+the store as a **type**, defaulting to the in-memory reference implementation that stays in
+`base`. A type rather than an instance because `ChatHistoryService` is a `KeyedSingleton`
+whose identity key is `hash_args(...)` over its constructor arguments — a store *instance*
+has no serializer and would raise; a class is handled by the existing `encode_type`.
+
+`AbstractAgent` gains a `CHAT_HISTORY_STORE` class variable for the same reason, defaulting
+to in-memory. A service must point its agents and its routers at the *same* store class, or
+the two resolve to different `ChatHistoryService` instances and read different history.
 
 ---
 
@@ -135,15 +182,20 @@ A service composition root then looks like this:
 ```python
 # services/chat-api/chat_api/app.py
 from base.app import create_app
-from base.capabilities import LLM, Redis, SQL
+from base.capabilities.prompts import Prompts
+from base.capabilities.terminal_capture import TerminalCapture
 from chat_api import routers
+from chat_api.prompts import templates
 from chat_api.settings import settings
 
 app = create_app(
     settings=settings,
     routers=routers,
     prefix=settings.api_prefix,
-    capabilities=[SQL(), Redis(), LLM()],
+    capabilities=[
+        TerminalCapture(settings.service_name),
+        Prompts(templates=[templates]),
+    ],
     cors_origins=settings.cors_origins_list,
 )
 
@@ -152,6 +204,9 @@ def start() -> None:
     from base.tools.webserver import run_webserver
     run_webserver(app_path="chat_api.app:app", settings=settings)
 ```
+
+Connection-backed capabilities (`SQL()`, `Redis()`, `LLM()`) that make `/readyz` probe real
+infrastructure are a natural next addition — see [doc 07](07-modularity-backlog.md).
 
 ### Capabilities replace the hardcoded lifespan
 

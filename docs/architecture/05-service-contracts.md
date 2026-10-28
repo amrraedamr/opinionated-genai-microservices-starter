@@ -1,5 +1,11 @@
 # 05 — Service Contracts
 
+> **Implementation note (phase 2).** All of `base/services/auth/` now lives in
+> `services/chat-api/chat_api/services/auth/`, not in `base`. It could not stay in the
+> library once `UserDTO` and `UserStore` moved out. The split described below is still
+> the target — phase 5 lifts the stateless verification half back into `base` — but the
+> starting point is "chat-api owns all of auth", not "base owns all of auth".
+
 How services authenticate, call each other, and stay debuggable once there is more than one
 of them.
 

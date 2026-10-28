@@ -11,7 +11,8 @@ from base.models.view_models.chat_history import (
 )
 from base.services.common.meta import KeyedSingleton
 from base.services.logging.console import ConsoleLoggerService
-from base.services.store.chat_history.sql import SqlChatHistoryStore
+from base.services.store.chat_history import ChatHistoryStore
+from base.services.store.chat_history.memory import InMemoryChatHistoryStore
 from base.tools.tokenizer import TokenCounter
 
 
@@ -19,7 +20,10 @@ class ChatHistoryService(metaclass=KeyedSingleton):
     """Append and retrieve canonical conversation history.
 
     Composes a ChatHistoryStore and TokenCounter to provide chat history
-    persistence on top of a backend store. The service owns canonical
+    persistence on top of a backend store. The store is supplied as a *type*
+    rather than an instance so this `KeyedSingleton`'s identity key stays
+    hashable; a service passes its own (e.g. `SqlChatHistoryStore`), and the
+    in-memory reference implementation is the default. The service owns canonical
     stored-message operations, visibility filtering, tool-pair repair,
     and token counting.
 
@@ -35,10 +39,11 @@ class ChatHistoryService(metaclass=KeyedSingleton):
     def __init__(
         self,
         config: ChatHistoryConfig,
+        store: type[ChatHistoryStore] = InMemoryChatHistoryStore,
     ) -> None:
         self._config: ChatHistoryConfig = config
 
-        self._store: SqlChatHistoryStore = SqlChatHistoryStore()
+        self._store: ChatHistoryStore = store()
         self._token_counter: TokenCounter = TokenCounter(
             model=self._config.tokenizer_model
         )

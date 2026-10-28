@@ -234,6 +234,33 @@ make new s=billing
 Cosmetic individually; collectively it is what stops people shelling out to half-remembered
 `docker compose` incantations.
 
+It must export `UV_PROJECT_ENVIRONMENT=.venvs/$(s)` for per-service targets — a uv
+workspace otherwise shares one `.venv`, and `uv sync --package b` uninstalls service `a`.
+See [doc 01](01-workspace-layout.md).
+
+---
+
+## 14. Connection-backed readiness capabilities
+
+Phase 1 landed the `Capability` protocol and `/readyz`, but only `Prompts` and
+`TerminalCapture` implement it. Neither touches a network. A service whose database or
+cache is unreachable still reports ready.
+
+Add `SQL()`, `Redis()`, `LLM()` and `Vectors()` capabilities whose `probe()` issues a
+cheap round trip (`SELECT 1`, `PING`, a models list) and whose `shutdown()` disposes the
+pool. They must create their clients in `startup()`, never in `__init__` — gunicorn runs
+with `preload: True`, so an `__init__`-built pool is shared across forked workers.
+
+---
+
+## 15. Per-service prompt template discovery
+
+`PromptLoader.initialize(template_packages)` now takes the packages explicitly, and
+templates live in the service (`chat_api/prompts/templates/`). What is still missing is
+any check that two services' prompt *keys* do not collide when they share a Redis
+`PROMPT_RELOAD` channel. `CacheChannels.for_app(...)` already namespaces the channel;
+the registry inside `PromptLoader` is still flat and global.
+
 ---
 
 ## Deliberately excluded

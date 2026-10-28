@@ -67,13 +67,21 @@ design.
 - Move `base/routers/{auth,conversation,user}.py` → `services/chat-api/chat_api/routers/`.
 - Move `base/models/orm/*` and the concrete stores (`store/user.py`, `store/conversation.py`,
   `store/user_identity.py`, `store/chat_history/sql.py`) into the service.
+- Move `base/services/auth/` **wholesale** into the service. It imports `UserDTO` and
+  `UserStore` directly, so it cannot stay behind once those move; phase 5 extracts the
+  stateless verification half back into `base`.
+- Move the domain view models (`auth`, `user`, `conversation`, `chat`), the
+  `DatabaseTable` enum, the concrete `TestAgent`, and the prompt templates.
+- Make `PromptLoader` and `ChatHistoryService` take the service's templates and store
+  instead of hardcoding `base`'s — see [doc 02](02-library-boundary.md).
 - **Remove `_import_all_tables()`** and its call in `base/clients/sql/client.py`; the
   service's `alembic/env.py` imports its models explicitly.
 - Introduce the service's own `DeclarativeBase`; `base` keeps only `TimestampMixin` and
-  `SerializableMixin`.
-- Move `alembic/` into the service. Existing migration files move unchanged — the schema is
-  identical, so no new migration is generated.
-- `base/main.py` shim is deleted here.
+  `SerializableMixin`. Retype `base/tools/serializers.py` against `DeclarativeBase`.
+- Move `alembic/`, `alembic.ini` and `.env.example` into the service. Existing migration
+  files move unchanged — the schema is identical, so no new migration is generated.
+- `base/main.py` shim is deleted here, along with `base`'s console script. The entrypoint
+  becomes the service's `serve`.
 
 **Risk:** medium — the metadata change is the subtle part. **Verify:** `alembic
 upgrade head` on a *fresh* database produces the identical schema; `alembic check` reports

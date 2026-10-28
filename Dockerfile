@@ -10,6 +10,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 COPY packages/base/pyproject.toml packages/base/pyproject.toml
+COPY services/chat-api/pyproject.toml services/chat-api/pyproject.toml
 
 RUN uv sync \
     --locked \

@@ -27,15 +27,6 @@ class SQLBackend(StrEnum):
                 return "asyncpg"
 
 
-class DatabaseTable(StrEnum):
-    USER = "user"
-    USER_IDENTITY = "user_identity"
-    PROMPT = "prompt"
-    ACTIVE_PROMPT = "active_prompt"
-    CONVERSATION = "conversation"
-    CHAT_HISTORY_MESSAGE = "chat_history_message"
-
-
 class Locale(StrEnum):
     EN = "en"
     AR = "ar"

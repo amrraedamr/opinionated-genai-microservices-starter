@@ -1,9 +1,9 @@
 import asyncio
 import importlib
 import pkgutil
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
+from types import ModuleType
 
-import base.services.prompt.templates as pkg
 from base.models.definitions.cache import CacheChannels
 from base.models.view_models.prompt import Prompt
 from base.services.cache.memory import InMemoryCacheService
@@ -21,11 +21,17 @@ class PromptLoader(metaclass=Singleton):
         self._cache_service: InMemoryCacheService = InMemoryCacheService()
         self._logger: ConsoleLoggerService = ConsoleLoggerService()
 
-    async def initialize(self) -> None:
+    async def initialize(
+        self, template_packages: Sequence[ModuleType] = ()
+    ) -> None:
         """Must be called ONCE at app startup.
 
         Subscribes to pub/sub for distributed reload events.
         If load_prompts_from_db is enabled, loads DB overrides.
+
+        `template_packages` are the service's own prompt packages. `base`
+        ships the loading mechanism, never the prompts themselves, so a
+        service that registers no templates is a valid configuration.
         """
         reload_pubsub: AsyncGenerator[str, None] = self._cache_service.subscribe(
             CacheChannels.PROMPT_RELOAD.value
@@ -35,7 +41,7 @@ class PromptLoader(metaclass=Singleton):
         )
 
         # Load all templates from code first, so they're available for DB overrides and in-memory access.
-        self.load_templates()
+        self.load_templates(template_packages)
         self._templates_loaded = True
 
         if settings.load_prompts_from_db:
@@ -73,8 +79,8 @@ class PromptLoader(metaclass=Singleton):
         finally:
             self._loading = False
 
-    def load_templates(self) -> None:
-        """Import all template modules so @register_prompt decorators fire.
+    def load_templates(self, template_packages: Sequence[ModuleType] = ()) -> None:
+        """Import the service's template modules so @register_prompt fires.
 
         Must be called ONCE at app startup.
         """
@@ -82,8 +88,11 @@ class PromptLoader(metaclass=Singleton):
             self._logger.warning("Templates already loaded, skipping")
             return
 
-        for info in pkgutil.walk_packages(pkg.__path__, prefix=f"{pkg.__name__}."):
-            importlib.import_module(info.name)
+        for package in template_packages:
+            for info in pkgutil.walk_packages(
+                package.__path__, prefix=f"{package.__name__}."
+            ):
+                importlib.import_module(info.name)
 
         self._logger.info("Loaded prompt templates: %d", len(self._prompts))
 

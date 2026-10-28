@@ -1,20 +1,26 @@
+"""Reusable ORM behaviour. Deliberately ships no tables and no declarative root.
+
+A shared `DeclarativeBase` would mean a shared `MetaData`, and a shared
+`MetaData` means every service's `alembic autogenerate` sees every other
+service's tables. Each service declares its own declarative root and reuses
+the behaviour here through these mixins instead.
+"""
+
 from dataclasses import asdict
 from datetime import UTC, datetime
+from typing import Self
 
 from sqlalchemy import DateTime
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    MappedAsDataclass,
-    MappedColumn,
-    mapped_column,
-)
+from sqlalchemy.orm import MappedColumn, mapped_column
 
 from base.tools.misc import _make_json_serializable
 
 
-class Base(MappedAsDataclass, DeclarativeBase):
+class SerializableMixin:
+    """Dict conversion helpers for `MappedAsDataclass` declarative models."""
+
     def to_dict(self, exclude: set[str] | None = None) -> dict:
-        result = asdict(self)
+        result = asdict(self)  # type: ignore[call-overload]
         if exclude:
             result = {k: v for k, v in result.items() if k not in exclude}
         return _make_json_serializable(result)  # type: ignore
@@ -24,7 +30,7 @@ class Base(MappedAsDataclass, DeclarativeBase):
             if hasattr(self, key):
                 setattr(self, key, value)
 
-    def clone(self, exclude: set[str] | None = None) -> "Base":
+    def clone(self, exclude: set[str] | None = None) -> Self:
         data = self.to_dict(exclude=exclude or {"id"})
         return self.__class__(**data)
 
@@ -55,12 +61,4 @@ class TimestampMixin:
         self.deleted_at = None
 
 
-def _import_all_tables():
-    import importlib
-    import pkgutil
-
-    for _, name, _ in pkgutil.walk_packages(__path__):
-        importlib.import_module(f"base.models.orm.{name}")
-
-
-_import_all_tables()
+__all__ = ["SerializableMixin", "TimestampMixin"]

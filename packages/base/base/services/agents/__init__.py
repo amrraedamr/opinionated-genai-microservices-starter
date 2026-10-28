@@ -17,6 +17,8 @@ from base.services.execution_context import ExecutionContext
 from base.services.llm import OpenAIService
 from base.services.logging.console import ConsoleLoggerService
 from base.services.prompt.service import PromptService
+from base.services.store.chat_history import ChatHistoryStore
+from base.services.store.chat_history.memory import InMemoryChatHistoryStore
 
 
 class AbstractAgent(metaclass=SingletonABC):
@@ -44,11 +46,20 @@ class AbstractAgent(metaclass=SingletonABC):
     REASONING_EFFORT: ClassVar[ReasoningEffort | None] = None
     HISTORY_LIMIT: ClassVar[int | None] = 40
 
+    CHAT_HISTORY_STORE: ClassVar[type[ChatHistoryStore]] = InMemoryChatHistoryStore
+    """Where this agent reads conversation history from.
+
+    `base` owns no tables, so the default is the in-memory reference store. A
+    service overrides this with its own persistent store — and must use the
+    same one its routers use, or the two will resolve to different
+    `ChatHistoryService` instances and see different history.
+    """
+
     def __init__(self) -> None:
         self._llm_service: OpenAIService = OpenAIService()
         self._prompt_service: PromptService = PromptService()
         self._chat_history_service: ChatHistoryService = ChatHistoryService(
-            ChatHistoryConfig()
+            ChatHistoryConfig(), self.CHAT_HISTORY_STORE
         )
         self._logger: ConsoleLoggerService = ConsoleLoggerService()
 

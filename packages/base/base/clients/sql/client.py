@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from base.models.definitions.database import SQLBackend
-from base.models.orm import _import_all_tables
 from base.services.common.meta import KeyedSingleton
 from base.services.configuration import settings
 
@@ -126,7 +125,6 @@ class SQLClient(metaclass=KeyedSingleton):
             autoflush=False,
             expire_on_commit=False,
         )
-        _import_all_tables()
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:
@@ -154,7 +152,6 @@ class SQLClient(metaclass=KeyedSingleton):
             autoflush=False,
             expire_on_commit=False,
         )
-        _import_all_tables()
 
     @asynccontextmanager
     async def asession(self) -> AsyncGenerator[AsyncSession, None]:

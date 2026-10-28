@@ -73,14 +73,14 @@ Each service must declare **its own `DeclarativeBase`**, reusing `base`'s behavi
 # services/chat-api/chat_api/models/orm/__init__.py
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
-from base.models.orm.mixins import SerializableMixin, TimestampMixin
+from base.models.orm import SerializableMixin, TimestampMixin
 
 
 class ChatBase(MappedAsDataclass, DeclarativeBase, SerializableMixin):
     """Declarative root for chat-api. Owns its own MetaData."""
 
 
-__all__ = ["ChatBase", "TimestampMixin"]
+__all__ = ["ChatBase", "SerializableMixin", "TimestampMixin"]
 ```
 
 ```python
@@ -93,7 +93,7 @@ from sqlalchemy_utils.types.uuid import UUIDType
 from chat_api.models.orm import ChatBase, TimestampMixin
 
 
-class Conversation(ChatBase, TimestampMixin):
+class Conversation(TimestampMixin, ChatBase):
     __tablename__ = "conversation"
 
     id: MappedColumn[UUID] = mapped_column(
@@ -103,6 +103,12 @@ class Conversation(ChatBase, TimestampMixin):
     user_id: MappedColumn[UUID] = mapped_column(UUIDType(binary=False), index=True)
     title: MappedColumn[str] = mapped_column(default="")
 ```
+
+> **Keep the existing mixin order when converting a table.** These models use
+> `MappedAsDataclass`, where the base-class order determines both the generated
+> `__init__` signature and column declaration order. Converting
+> `class X(TimestampMixin, Base)` to `class X(ChatBase, TimestampMixin)` changes the MRO
+> for no benefit; swapping only the declarative root keeps the move a true rename.
 
 ### What `base` keeps
 

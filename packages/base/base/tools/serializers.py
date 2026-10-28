@@ -9,15 +9,14 @@ from uuid import UUID
 
 from fastapi import UploadFile
 from pydantic import BaseModel
-
-from base.models.orm import Base
+from sqlalchemy.orm import DeclarativeBase
 
 
 def encode_datetime(obj: datetime) -> dict[str, Any]:
     return {"_type": "datetime", "value": obj.isoformat()}
 
 
-def encode_dto(obj: Base) -> dict[str, Any]:
+def encode_dto(obj: DeclarativeBase) -> dict[str, Any]:
     return {
         "_type": "dto",
         "_class": f"{obj.__class__.__module__}.{obj.__class__.__name__}",
@@ -56,7 +55,7 @@ def encode_upload_file(obj: UploadFile) -> dict[str, Any]:
 class ExpansiveEncoder(JSONEncoder):
     encoders: ClassVar[dict[type, Callable[[Any], dict[str, Any]]]] = {
         datetime: encode_datetime,
-        Base: encode_dto,
+        DeclarativeBase: encode_dto,
         BaseModel: encode_base_model,
         UUID: encode_uuid,
         type: encode_type,
