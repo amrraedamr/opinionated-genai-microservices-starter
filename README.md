@@ -58,8 +58,16 @@ A production-ready FastAPI starter with a layered architecture, metaclass-based 
 
 ### Installation
 
+This repository is a **uv workspace**. The shared library lives in `packages/base/`, and
+each deployable service lives under `services/` — today just `services/chat-api/`.
+
 ```bash
-uv sync
+# Every workspace member
+uv sync --all-packages
+
+# Or one service into its own isolated environment. A workspace shares a single
+# `.venv`, so `uv sync --package <svc>` alone would uninstall the others.
+UV_PROJECT_ENVIRONMENT=.venvs/chat-api uv sync --package chat-api
 ```
 
 ### Generate RSA Keys (JWT Auth)
@@ -72,28 +80,30 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 ### Configure
 
-1. Copy `.env.example` → `.env` and fill in what you need. Typed defaults live in `Settings` (`base/services/configuration/settings.py`) — you only set the integrations you use.
-2. **SQLite (default):**
-   - `mkdir -p database`
-   - keep `SQL_BACKEND=sqlite` and `SQLITE_DB_PATH=database/app.db` (already in `.env.example`)
+1. Copy `services/chat-api/.env.example` → `services/chat-api/.env` and fill in what you need. Each service composes its own typed settings from `CoreSettings` plus the mixins it uses (`packages/base/base/services/configuration/`) — you only set the integrations that service uses.
+2. Optionally copy `.env.shared.example` → `.env.shared` at the repository root for infrastructure endpoints every service shares. Precedence is `.env.shared` < the service's `.env` < `.env.local` < real process environment.
+3. **SQLite (default):**
+   - `mkdir -p services/chat-api/database`
+   - keep `SQL_BACKEND=sqlite` and `SQLITE_DB_PATH=database/app.db` (already in the service's `.env.example`; the path is relative to the service directory)
    - Alembic creates the `.db` file on first `alembic upgrade head`
-3. In Docker/deploy, set the same variables as real environment vars instead of a `.env` file.
+4. In Docker/deploy, set the same variables as real environment vars instead of a `.env` file.
 
 ### Run Migrations
 
+Each service owns its own schema and its own migration history, so migrations run from the service directory.
+
 ```bash
-# Apply all migrations (creates/updates database schema)
-uv run alembic upgrade head
+cd services/chat-api && uv run alembic upgrade head
 ```
 
 ### Run
 
 ```bash
-# Using the uv-managed environment
-uv run api
+# From services/chat-api, so the service's own .env resolves
+uv run serve
 
 # Or directly with uvicorn
-uv run uvicorn base.main:app --reload
+uv run uvicorn chat_api.app:app --reload
 ```
 
 The API will be available at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
@@ -359,12 +369,12 @@ Same `Settings` model everywhere — change `ENVIRONMENT=local|dev|prod|…` (an
 
 ### Common variables
 
-Full list + comments: [`.env.example`](.env.example). Highlights:
+Full list + comments: [`services/chat-api/.env.example`](services/chat-api/.env.example) and [`.env.shared.example`](.env.shared.example). Highlights:
 
 | Variable | Default | Used by |
 |----------|---------|---------|
 | `ENVIRONMENT` | `local` | Webserver (uvicorn vs gunicorn), error debug detail |
-| `APP_NAME` | `opinionated-genai-starter` | Log channel naming |
+| `SERVICE_NAME` | *(required; `chat-api` for this service)* | Namespaces Redis channels, cache keys, log fields and traces |
 | `AUTH_PRIVATE_KEY_PATH` / `AUTH_PUBLIC_KEY_PATH` | `keys/*.pem` | `AuthService` JWT |
 | `OAUTH_PROVIDERS` + `OAUTH_*_CLIENT_*` | off | Login-with-X (Google/Facebook/Microsoft/GitHub/Apple) |
 | `IDP_RESOURCE_SERVER_ENABLED` + `IDP_*` | off | Accept enterprise IdP Bearer JWTs |
@@ -1292,12 +1302,18 @@ Gunicorn is configured with:
 
 ## Multi-Service Architecture (design)
 
-This starter currently targets a **single application**. A design for extending it into a
-**multi-app / microservice** starter — several deployables sharing this same foundation,
-each with its own dependencies, its own database, and its own `.env` — lives in
-[`docs/architecture/`](docs/architecture/README.md).
+This starter is a **multi-app / microservice** foundation: several deployables sharing one
+foundation, each with its own dependencies, its own database, and its own `.env`. The
+design lives in [`docs/architecture/`](docs/architecture/README.md).
 
-> **Design only — not yet implemented.** Nothing in the repository has changed.
+> **Status: phases 0–3 implemented.** `base` is now a domain-free library in
+> `packages/base/` with optional dependency extras and composable settings, and the former
+> monolith is `services/chat-api/`, which owns its own tables, migrations and `.env`.
+> Phases 4–6 (build/deploy tooling, the identity split, and the async backbone) are still
+> design only — see [08 — Migration Plan](docs/architecture/08-migration-plan.md).
+>
+> **Note:** sections below that list `base/...` paths still describe the pre-split layout
+> and are being refreshed; `docs/architecture/` is authoritative for structure.
 
 | Doc | Covers |
 |-----|--------|

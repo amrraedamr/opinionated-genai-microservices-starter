@@ -47,9 +47,13 @@ It's aimed at:
 
 ## Setup in 5 steps
 
+> **Layout note.** This repository is a **uv workspace**: the shared library lives in
+> `packages/base/`, and each deployable service lives in `services/`. Today there is one
+> service, `services/chat-api/`. See [`docs/architecture/`](docs/architecture/) for why.
+
 ```bash
-# 1. Install dependencies
-uv sync
+# 1. Install dependencies (every workspace member)
+uv sync --all-packages
 
 # 2. Generate the JWT RSA key pair
 mkdir -p keys
@@ -57,9 +61,13 @@ openssl genrsa -out keys/private.pem 2048
 openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 3. Configure
-#    - Copy `.env.example` → `.env` and fill what you need. Defaults in Settings
-#      already work for SQLite + local JWT keys.
-#    - `mkdir -p database` (SQLite file path defaults to `database/app.db`).
+#    - Copy `services/chat-api/.env.example` → `services/chat-api/.env` and fill
+#      what you need. The defaults already work for SQLite + local JWT keys.
+#    - Optionally copy `.env.shared.example` → `.env.shared` for infrastructure
+#      endpoints every service shares. Service `.env` wins over it; real process
+#      environment wins over both.
+#    - `mkdir -p services/chat-api/database` (SQLite path defaults to
+#      `database/app.db`, relative to the service directory).
 #    - Set LLM keys (e.g. `OPENAI_LLM_API_KEY` or Azure OpenAI vars) when you
 #      hit chat / embeddings endpoints.
 #    - Optional Login-with-X: set OAUTH_PROVIDERS=google,apple,… plus each
@@ -68,13 +76,13 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 #      See README.md#authentication.
 
 # 4. Apply database migrations
-#    Creates the SQLite file (or updates the schema for MySQL / PostgreSQL).
-uv run alembic upgrade head
+#    Each service owns its own schema, so migrations run from the service.
+cd services/chat-api && uv run alembic upgrade head
 
-# 5. Run the API
-uv run api
+# 5. Run the API (still from services/chat-api, so its .env resolves)
+uv run serve
 # or, equivalently:
-# uv run uvicorn base.main:app --reload
+# uv run uvicorn chat_api.app:app --reload
 ```
 
 The API is now serving at `http://localhost:8000`.
@@ -148,14 +156,14 @@ You'll see `StreamStart` → a sequence of `StreamMessage` events with token del
 
 ### Add a new router
 
-Drop a file in `base/routers/`, define a `router` named export, and the auto-discovery picks it up — no manual wiring.
+Drop a file in your service's `routers/` package, define a `router` named export, and the auto-discovery picks it up — no manual wiring.
 
 ```python
-# base/routers/items.py
+# services/chat-api/chat_api/routers/items.py
 from fastapi import APIRouter
 
-from base.models.orm.user import UserDTO
-from base.services.auth.dependencies import validate_user_dependency
+from chat_api.models.orm.user import UserDTO
+from chat_api.services.auth.dependencies import validate_user_dependency
 
 router = APIRouter(prefix="/items", tags=["Items"])
 
@@ -169,12 +177,12 @@ It's now mounted at `/api/7r/items` after the next reload.
 
 ### Register a prompt
 
-Drop a file in `base/services/prompt/templates/`, define a function returning a `Prompt`, and decorate it with `@register_prompt`. The `PromptLoader` auto-imports every module in that directory at startup.
+Drop a file in your service's prompt templates package, define a function returning a `Prompt`, and decorate it with `@register_prompt`. The `PromptLoader` imports every module in the packages the service passes to the `Prompts` capability.
 
 A typical chat-aware template wires three items together: a system instruction, a `MessagesPlaceholder` for prior turns, and a structured user message:
 
 ```python
-# base/services/prompt/templates/greeter.py
+# services/chat-api/chat_api/prompts/templates/greeter.py
 from base.models.view_models.prompt import (
     MessagesPlaceholder,
     Prompt,
@@ -222,7 +230,7 @@ rendered = PromptService().render(
 Subclass `AbstractAgent`, set `PROMPT_KEY`, and implement `_execute()`. `arun()` handles the LLM error → canned message → `FlowAbortError` mapping for you. Use the built-in `_aget_history()` helper to feed prior turns into the prompt's `MessagesPlaceholder` — it slices off the trailing `USER` message (which is the current query, already substituted via `{user_query}`):
 
 ```python
-# base/services/agents/greeter.py
+# services/chat-api/chat_api/services/agents/greeter.py
 from typing import ClassVar
 
 from base.services.agents import AbstractAgent
