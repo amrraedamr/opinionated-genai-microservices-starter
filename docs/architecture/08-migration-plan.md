@@ -173,15 +173,19 @@ queries a user table; both services start with their own databases from empty.
 
 ## Summary
 
-| Phase | Theme | Risk | App deployable after |
+| Phase | Theme | Risk | Status |
 | --- | --- | --- | --- |
-| 0 | Workspace scaffold | Low | ✅ |
-| 1 | App factory | Low–Med | ✅ |
-| 2 | First service extraction | Medium | ✅ |
-| 3 | Extras + settings | Medium | ✅ |
-| 4 | Build, deploy, scaffolding | Low | ✅ |
-| 5 | Identity split | **High** | ✅ |
-| 6 | Async backbone | Medium | ✅ |
+| 0 | Workspace scaffold | Low | Done |
+| 1 | App factory | Low–Med | Done |
+| 2 | First service extraction | Medium | Done |
+| 3 | Extras + settings | Medium | Done |
+| 4 | Build, deploy, scaffolding | Low | Done |
+| 5 | Identity split | **High** | Done |
+| 6 | Async backbone | Medium | Done |
+
+All seven phases are implemented. The workspace holds `base` and
+`contracts` under `packages/`, and `chat_api`, `identity` and
+`ingestion_worker` under `services/`.
 
 **Phases 0–3 deliver most of the value.** At that point `base` is a real shared library and
 adding a second service is a scaffolder invocation. Phases 4–6 are about making the second,
@@ -207,3 +211,24 @@ Both of these are legitimate places to stop, not failures:
 | Is `identity` a separate service, or does one app keep users? | Determines whether phase 5 is needed at all |
 | One database engine or several? | Affects extras, compose, and migration tooling |
 | Does anything need async messaging today? | If not, defer phase 6 entirely |
+
+---
+
+## Running it
+
+```bash
+cp .env.shared.example .env.shared
+docker compose -f deploy/docker-compose.yml up --build
+```
+
+| Target | Command |
+| --- | --- |
+| All suites, each service in its own process | `uv run python tools/run_tests.py` |
+| Architectural boundaries | `uv run python tools/boundary_lint.py` |
+| Services a change affects | `uv run python tools/affected.py --format table` |
+| A new service | `uv run python tools/new_service.py --name billing --storage postgres --http` |
+| Port a starter commit | `uv run python tools/port_from_starter.py --check <sha>` |
+
+One process serves one service: settings and the SQL engine are process-global,
+so `tools/run_tests.py` gives each service its own process rather than
+collecting them into one pytest run.
