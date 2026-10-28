@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
-from jwt import (
-    DecodeError,
-    ExpiredSignatureError,
-    InvalidAlgorithmError,
-    decode,
-    encode,
-)
-
 from base.models.definitions.errors import AuthErrors
-from base.services.auth import TokenPair
+from base.services.auth import TokenIssuer, TokenPair, TokenVerifier
 from base.services.auth.oauth import OAuthProfile, OAuthProviderRegistry
+from base.services.auth.tokens import InvalidSignedPayload
 from base.services.common.meta import Singleton
 from base.tools.errors import raise_error
 from base.tools.security import pkce_pair
@@ -30,8 +22,8 @@ class OAuthService(metaclass=Singleton):
         self._registry = OAuthProviderRegistry()
         self._user_store = UserStore()
         self._identity_store = UserIdentityStore()
-        self._private_key = self._load_key(settings.auth_private_key_path)
-        self._public_key = self._load_key(settings.auth_public_key_path)
+        self._issuer = TokenIssuer()
+        self._verifier = TokenVerifier()
 
     def enabled_providers(self) -> list[str]:
         return self._registry.enabled_names()
@@ -169,37 +161,18 @@ class OAuthService(metaclass=Singleton):
         )
 
     def _sign_state(self, payload: dict[str, Any], ttl_seconds: int) -> str:
-        now = datetime.now(UTC)
-        return encode(
-            {
-                **payload,
-                "iat": now,
-                "exp": now.timestamp() + ttl_seconds,
-            },
-            key=self._private_key,
-            algorithm="RS256",
-        )
+        return self._issuer.sign_payload(payload, ttl_seconds=ttl_seconds)
 
     def _decode_signed(self, token: str, expected_type: str) -> dict[str, Any]:
+        invalid = (
+            AuthErrors.OAUTH_CODE_INVALID
+            if expected_type == "oauth_code"
+            else AuthErrors.OAUTH_STATE_INVALID
+        )
         try:
-            payload: dict[str, Any] = decode(
-                token,
-                key=self._public_key,
-                algorithms=["RS256"],
-            )
-            if payload.get("type") != expected_type:
-                raise_error(AuthErrors.OAUTH_STATE_INVALID)
-            return payload
-        except ExpiredSignatureError:
-            if expected_type == "oauth_code":
-                raise_error(AuthErrors.OAUTH_CODE_INVALID)
-            raise_error(AuthErrors.OAUTH_STATE_INVALID)
-        except (DecodeError, InvalidAlgorithmError):
-            if expected_type == "oauth_code":
-                raise_error(AuthErrors.OAUTH_CODE_INVALID)
-            raise_error(AuthErrors.OAUTH_STATE_INVALID)
-
-    @staticmethod
-    def _load_key(path: str) -> str:
-        with open(path) as f:
-            return f.read()
+            payload = self._verifier.decode_payload(token)
+        except InvalidSignedPayload:
+            raise_error(invalid)
+        if payload.get("type") != expected_type:
+            raise_error(invalid)
+        return payload

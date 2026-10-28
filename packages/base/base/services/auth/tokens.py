@@ -37,6 +37,14 @@ def _as_uuid(value: str) -> UUID | None:
         return None
 
 
+class InvalidSignedPayload(Exception):
+    """A signed payload failed verification."""
+
+    def __init__(self, *, expired: bool) -> None:
+        super().__init__("expired" if expired else "invalid")
+        self.expired = expired
+
+
 class TokenIssuer(metaclass=Singleton):
     """Signs first-party RS256 access and refresh tokens."""
 
@@ -57,6 +65,10 @@ class TokenIssuer(metaclass=Singleton):
     def issue_refresh(self, claims: dict[str, Any]) -> RefreshToken:
         expiry = self._config.refresh_token_expiry_seconds
         return RefreshToken(self._sign({**claims, "type": "refresh"}, expiry))
+
+    def sign_payload(self, payload: dict[str, Any], *, ttl_seconds: int) -> str:
+        """Sign an arbitrary short-lived payload, such as an OAuth state."""
+        return self._sign(payload, ttl_seconds)
 
     def _sign(self, payload: dict[str, Any], expiry_seconds: int) -> str:
         now = datetime.now(UTC)
@@ -154,6 +166,19 @@ class TokenVerifier(metaclass=Singleton):
         if payload.get("type") != expected_type:
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         return payload
+
+    def decode_payload(self, token: str) -> dict[str, Any]:
+        """Verify an arbitrary signed payload and return its claims.
+
+        Raises `InvalidSignedPayload` so the caller can map it to an error of
+        its own, rather than imposing the token error codes used for callers.
+        """
+        try:
+            return decode(token, key=self._public_key, algorithms=["RS256"])
+        except ExpiredSignatureError as exc:
+            raise InvalidSignedPayload(expired=True) from exc
+        except (DecodeError, InvalidAlgorithmError) as exc:
+            raise InvalidSignedPayload(expired=False) from exc
 
     # Local
 
