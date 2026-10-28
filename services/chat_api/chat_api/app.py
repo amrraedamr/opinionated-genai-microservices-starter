@@ -1,4 +1,4 @@
-"""Composition root for chat-api.
+"""Composition root for chat_api.
 
 This is where the service decides what it is: its settings, which routers it
 exposes, which capabilities it needs, and how it is served. `base` supplies the

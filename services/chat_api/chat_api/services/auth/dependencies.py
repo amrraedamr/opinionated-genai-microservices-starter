@@ -1,4 +1,4 @@
-"""chat-api's authenticated-user dependency.
+"""chat_api's authenticated-user dependency.
 
 `base` provides `principal_dependency`, which authenticates with no database
 access. This service additionally owns the user table, so it offers a

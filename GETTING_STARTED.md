@@ -49,7 +49,7 @@ It's aimed at:
 
 > **Layout note.** This repository is a **uv workspace**: the shared library lives in
 > `packages/base/`, and each deployable service lives in `services/`. Today there is one
-> service, `services/chat-api/`. See [`docs/architecture/`](docs/architecture/) for why.
+> service, `services/chat_api/`. See [`docs/architecture/`](docs/architecture/) for why.
 
 ```bash
 # 1. Install dependencies (every workspace member)
@@ -61,12 +61,12 @@ openssl genrsa -out keys/private.pem 2048
 openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 3. Configure
-#    - Copy `services/chat-api/.env.example` → `services/chat-api/.env` and fill
+#    - Copy `services/chat_api/.env.example` → `services/chat_api/.env` and fill
 #      what you need. The defaults already work for SQLite + local JWT keys.
 #    - Optionally copy `.env.shared.example` → `.env.shared` for infrastructure
 #      endpoints every service shares. Service `.env` wins over it; real process
 #      environment wins over both.
-#    - `mkdir -p services/chat-api/database` (SQLite path defaults to
+#    - `mkdir -p services/chat_api/database` (SQLite path defaults to
 #      `database/app.db`, relative to the service directory).
 #    - Set LLM keys (e.g. `OPENAI_LLM_API_KEY` or Azure OpenAI vars) when you
 #      hit chat / embeddings endpoints.
@@ -77,9 +77,9 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 4. Apply database migrations
 #    Each service owns its own schema, so migrations run from the service.
-cd services/chat-api && uv run alembic upgrade head
+cd services/chat_api && uv run alembic upgrade head
 
-# 5. Run the API (still from services/chat-api, so its .env resolves)
+# 5. Run the API (still from services/chat_api, so its .env resolves)
 uv run serve
 # or, equivalently:
 # uv run uvicorn chat_api.app:app --reload
@@ -159,7 +159,7 @@ You'll see `StreamStart` → a sequence of `StreamMessage` events with token del
 Drop a file in your service's `routers/` package, define a `router` named export, and the auto-discovery picks it up — no manual wiring.
 
 ```python
-# services/chat-api/chat_api/routers/items.py
+# services/chat_api/chat_api/routers/items.py
 from fastapi import APIRouter
 
 from chat_api.models.orm.user import UserDTO
@@ -182,7 +182,7 @@ Drop a file in your service's prompt templates package, define a function return
 A typical chat-aware template wires three items together: a system instruction, a `MessagesPlaceholder` for prior turns, and a structured user message:
 
 ```python
-# services/chat-api/chat_api/prompts/templates/greeter.py
+# services/chat_api/chat_api/prompts/templates/greeter.py
 from base.models.view_models.prompt import (
     MessagesPlaceholder,
     Prompt,
@@ -230,7 +230,7 @@ rendered = PromptService().render(
 Subclass `AbstractAgent`, set `PROMPT_KEY`, and implement `_execute()`. `arun()` handles the LLM error → canned message → `FlowAbortError` mapping for you. Use the built-in `_aget_history()` helper to feed prior turns into the prompt's `MessagesPlaceholder` — it slices off the trailing `USER` message (which is the current query, already substituted via `{user_query}`):
 
 ```python
-# services/chat-api/chat_api/services/agents/greeter.py
+# services/chat_api/chat_api/services/agents/greeter.py
 from typing import ClassVar
 
 from base.services.agents import AbstractAgent

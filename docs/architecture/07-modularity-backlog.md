@@ -174,7 +174,7 @@ This matters more with many services because each new service re-inherits the pa
 `tools/locale.py` + `canned_messages` localise them. With several services, a gateway or
 client cannot tell which service produced `RECORD_NOT_FOUND`.
 
-Prefix error codes with the owning service (`chat-api.RECORD_NOT_FOUND`) and keep
+Prefix error codes with the owning service (`chat_api.RECORD_NOT_FOUND`) and keep
 per-service message catalogues, with `base` owning only infrastructure-level codes. Keep
 the existing `AppExceptionHandler` shape — only the code namespace changes.
 
@@ -225,9 +225,9 @@ prefixes come from settings ([doc 02](02-library-boundary.md)).
 
 ```
 make up             # infra + all services
-make dev s=chat-api # infra in docker, one service on host with reload
-make migrate s=chat-api
-make test s=chat-api
+make dev s=chat_api # infra in docker, one service on host with reload
+make migrate s=chat_api
+make test s=chat_api
 make new s=billing
 ```
 

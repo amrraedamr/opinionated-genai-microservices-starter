@@ -2,7 +2,7 @@ from enum import StrEnum
 
 
 class DatabaseTable(StrEnum):
-    """Tables owned by chat-api.
+    """Tables owned by chat_api.
 
     Table names are part of a service's own schema, not shared infrastructure,
     so this enum lives with the service rather than in `base`.

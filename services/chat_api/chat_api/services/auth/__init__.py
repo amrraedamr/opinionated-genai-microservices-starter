@@ -1,4 +1,4 @@
-"""chat-api's user-bound authentication.
+"""chat_api's user-bound authentication.
 
 Everything mechanical — signing, verifying, JWKS, the bearer scheme, the OAuth
 provider protocol — now lives in `base.services.auth` and is shared by every
@@ -7,7 +7,7 @@ turn a verified `Principal` into a `UserDTO`, and turn a `UserDTO` into claims
 worth signing.
 
 When phase 5 extracts the identity service, this module moves with the user
-table and chat-api drops to `base`'s `principal_dependency` alone.
+table and chat_api drops to `base`'s `principal_dependency` alone.
 """
 
 import uuid

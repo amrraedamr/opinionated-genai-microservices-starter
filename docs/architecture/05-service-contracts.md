@@ -1,10 +1,10 @@
 # 05 — Service Contracts
 
 > **Implementation note (phase 2).** All of `base/services/auth/` now lives in
-> `services/chat-api/chat_api/services/auth/`, not in `base`. It could not stay in the
+> `services/chat_api/chat_api/services/auth/`, not in `base`. It could not stay in the
 > library once `UserDTO` and `UserStore` moved out. The split described below is still
 > the target — phase 5 lifts the stateless verification half back into `base` — but the
-> starting point is "chat-api owns all of auth", not "base owns all of auth".
+> starting point is "chat_api owns all of auth", not "base owns all of auth".
 
 How services authenticate, call each other, and stay debuggable once there is more than one
 of them.
@@ -47,7 +47,7 @@ graph LR
 
     C[Client] -->|credentials| I
     I -->|signed JWT| C
-    C -->|Bearer JWT| CA[chat-api]
+    C -->|Bearer JWT| CA[chat_api]
     C -->|Bearer JWT| W[other services]
     CA --> V
     W --> V
@@ -96,7 +96,7 @@ async def current_principal(
 principal_dependency = Depends(current_principal)
 ```
 
-Every service uses this. `chat-api` learns the caller's `user_id` with **zero** database
+Every service uses this. `chat_api` learns the caller's `user_id` with **zero** database
 access and **zero** knowledge of the user schema. The existing enterprise IdP settings
 (`idp_issuer`, `idp_jwks_url`, `idp_algorithms`) slot straight into `TokenVerifier` —
 verifying a first-party token and an Entra token becomes the same code path.
@@ -147,7 +147,7 @@ class ServiceClient:
 ```
 
 ```python
-# services/chat-api/chat_api/clients/identity.py
+# services/chat_api/chat_api/clients/identity.py
 from contracts.v1.identity import UserProfile
 
 from base.services.http.service_client import ServiceClient

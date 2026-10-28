@@ -28,6 +28,7 @@ Derived from which modules import `base.models.orm` (the domain marker).
 | `services/{logging,execution_context,http,keyvault,common}` | Cross-cutting |
 | `services/prompt` | Prompt loading/templating — mechanism, not domain |
 | `services/agents` | `AbstractAgent` contract |
+| `services/auth` | `TokenIssuer`, `TokenVerifier`, `Principal`, `http_bearer`, OAuth provider mechanics — authentication with **no user table**. See [doc 05](05-service-contracts.md) |
 | `services/store/__init__.py` | `AbstractStore` + `AbstractSequenceStore` — **already DB-agnostic** |
 | `services/store/chat_history/memory.py` | Reference in-memory implementation |
 | `services/background_tasks` | Needs a distributed implementation — see [doc 07](07-modularity-backlog.md) |
@@ -39,20 +40,20 @@ Derived from which modules import `base.models.orm` (the domain marker).
 | Module | Destination | Why |
 | --- | --- | --- |
 | `models/orm/user.py`, `user_identity.py` | `services/identity/` | Concrete tables owned by one service |
-| `models/orm/conversation.py`, `chat_history_message.py` | `services/chat-api/` | Concrete tables owned by one service |
+| `models/orm/conversation.py`, `chat_history_message.py` | `services/chat_api/` | Concrete tables owned by one service |
 | `models/orm/prompt.py` | Whichever service owns prompt storage | Concrete table (two: `prompt` and `active_prompt`) |
 | `models/definitions/database.py::DatabaseTable` | Owning service | Table *names* are part of a service's schema, not shared infrastructure |
 | `services/store/{user,user_identity}.py` | `services/identity/` | Bound to those tables |
-| `services/store/conversation.py`, `store/chat_history/sql.py` | `services/chat-api/` | Bound to those tables |
+| `services/store/conversation.py`, `store/chat_history/sql.py` | `services/chat_api/` | Bound to those tables |
 | `services/auth/` (the user-lookup half) | `services/identity/` | See [doc 05](05-service-contracts.md) |
 | `services/prompt/templates/` | Each service | `base` ships the loading mechanism; prompts are content |
-| `services/agents/test.py` | `services/chat-api/` | A concrete agent is application code; `AbstractAgent` stays |
+| `services/agents/test.py` | `services/chat_api/` | A concrete agent is application code; `AbstractAgent` stays |
 | `models/view_models/{auth,user,conversation,chat}.py` | Owning service | Request/response models for the routers that move with them |
-| `routers/{auth,conversation,user}.py` | `identity` / `chat-api` | Application surface |
+| `routers/{auth,conversation,user}.py` | `identity` / `chat_api` | Application surface |
 
 > **Sequencing note.** `services/auth/` cannot be split at the same time its tables move:
 > it imports `UserDTO` and `UserStore` directly. Phase 2 therefore moves **all** of
-> `services/auth/` into `chat-api` so `base` is domain-free immediately, and phase 5
+> `services/auth/` into `chat_api` so `base` is domain-free immediately, and phase 5
 > extracts the stateless verification half back into `base` as part of the identity split.
 > `models/view_models/chat_history.py` stays in `base` — `StoredMessage`, `ConversationId`
 > and friends are generic LLM-chat types that `ChatHistoryService` and `AbstractAgent`
@@ -89,7 +90,7 @@ would try to create all of them in that service's database.
 beats magic exactly when isolation matters.
 
 ```python
-# services/chat-api/alembic/env.py
+# services/chat_api/alembic/env.py
 from chat_api.models.orm import ChatBase
 
 import chat_api.models.orm.chat_history_message    # noqa: F401
@@ -180,7 +181,7 @@ Responsibilities:
 A service composition root then looks like this:
 
 ```python
-# services/chat-api/chat_api/app.py
+# services/chat_api/chat_api/app.py
 from base.app import create_app
 from base.capabilities.prompts import Prompts
 from base.capabilities.terminal_capture import TerminalCapture
@@ -311,12 +312,12 @@ Notes from doing it:
 Services then declare intent legibly:
 
 ```toml
-# chat-api          → base[server,sql,sqlite,postgres,auth,llm,redis,sse]
+# chat_api          → base[server,sql,sqlite,postgres,auth,llm,redis,sse]
 # identity          → base[server,sql,postgres,auth,redis]
 # ingestion-worker  → base[sql,postgres,llm,vectors,mongo]   # no server extra
 ```
 
-Measured, not assumed: with `chat-api` installed into its own environment, its
+Measured, not assumed: with `chat_api` installed into its own environment, its
 `site-packages` contains `asyncpg, gunicorn, httpx, openai, redis, sqlalchemy, tiktoken,
 uvicorn` and **no** `qdrant_client`, `pymongo`, `azure*` or `aiomysql`. A probe service
 declaring `base[vectors,mongo]` gets the exact inverse — `httpx, pymongo, qdrant_client`

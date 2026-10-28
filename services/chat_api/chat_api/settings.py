@@ -1,4 +1,4 @@
-"""chat-api's settings: `CoreSettings` plus only the mixins it actually uses.
+"""chat_api's settings: `CoreSettings` plus only the mixins it actually uses.
 
 Inheriting one god-class would give this service OAuth-for-every-provider, Mongo,
 Cosmos, Qdrant and Azure Search fields it never reads — and would make it
@@ -28,7 +28,7 @@ class ChatApiSettings(
     PostgresSettingsMixin,
     RedisSettingsMixin,
     LLMSettingsMixin,
-    # chat-api still issues tokens and owns users. Phase 5 moves that to the
+    # chat_api still issues tokens and owns users. Phase 5 moves that to the
     # identity service, at which point this drops to TokenVerificationMixin.
     TokenIssuingMixin,
     OAuthSettingsMixin,
@@ -43,7 +43,7 @@ class ChatApiSettings(
         populate_by_name=True,
     )
 
-    service_name: str = "chat-api"
+    service_name: str = "chat_api"
     api_prefix: str = "/api/7r"
 
     cors_origins: str = ""
@@ -57,6 +57,6 @@ settings = ChatApiSettings()
 
 
 if __name__ == "__main__":  # pragma: no cover
-    # `uv run --package chat-api python -m chat_api.settings` — fail loudly in
+    # `uv run --package chat_api python -m chat_api.settings` — fail loudly in
     # CI or a container preStart probe rather than on the first request.
-    print(f"chat-api settings OK (service_name={settings.service_name!r}, environment={settings.environment!r})")
+    print(f"chat_api settings OK (service_name={settings.service_name!r}, environment={settings.environment!r})")

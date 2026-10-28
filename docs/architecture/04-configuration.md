@@ -26,9 +26,9 @@ Two consequences for multiple services:
 
 1. **Inheriting one god-class gives every service every field.** A worker with no HTTP
    surface still carries `oauth_apple_private_key_path`. Worse, you lose the ability to
-   *require* a field: `OPENAI_API_KEY` cannot be mandatory in `chat-api` if the same class
+   *require* a field: `OPENAI_API_KEY` cannot be mandatory in `chat_api` if the same class
    must also validate for a service that has no LLM.
-2. **A subclass is invisible to `base`.** If `chat-api` defines
+2. **A subclass is invisible to `base`.** If `chat_api` defines
    `class Settings(BaseSettings)`, the 20 modules inside `base` still import the *base*
    instance. The subclass is never consulted.
 
@@ -151,7 +151,7 @@ The full set, each lifting one group from today's file **verbatim**:
 ### Layer 3 — the service composes and extends
 
 ```python
-# services/chat-api/chat_api/settings.py
+# services/chat_api/chat_api/settings.py
 from pydantic_settings import SettingsConfigDict
 
 from base.services.configuration.core import CoreSettings
@@ -175,7 +175,7 @@ class ChatApiSettings(
     PostgresSettingsMixin,
     RedisSettingsMixin,
     LLMSettingsMixin,
-    # chat-api still issues tokens and owns users. Phase 5 moves that to the
+    # chat_api still issues tokens and owns users. Phase 5 moves that to the
     # identity service, at which point this drops to TokenVerificationMixin.
     TokenIssuingMixin,
     OAuthSettingsMixin,
@@ -189,7 +189,7 @@ class ChatApiSettings(
         populate_by_name=True,
     )
 
-    service_name: str = "chat-api"
+    service_name: str = "chat_api"
     api_prefix: str = "/api/7r"
 
     cors_origins: str = ""
@@ -209,7 +209,7 @@ Verified: `ChatApiSettings` carries `sql_backend`, `pg_database`, `redis_url`,
 
 > **On tightening a field to required.** An earlier draft made `openai_api_key`
 > `Field(min_length=1)` here. That is the right move for a real deployment and the wrong
-> one for a starter: it would stop `chat-api` booting on a fresh clone before any key
+> one for a starter: it would stop `chat_api` booting on a fresh clone before any key
 > exists, and the whole regression suite — register, login, conversations — needs no LLM
 > call. The mechanism is what matters and it is available; the starter leaves the field
 > optional and documents tightening it as a per-deployment decision.
@@ -265,7 +265,7 @@ rather than a silently stale object.
 The composition root registers settings before importing anything that reads them:
 
 ```python
-# services/chat-api/chat_api/app.py
+# services/chat_api/chat_api/app.py
 from base.services.configuration import configure
 
 from chat_api.settings import settings
@@ -342,8 +342,8 @@ with a clear message, rather than at runtime with `AttributeError`.
 .env.shared                  # gitignored
 services/identity/.env.example
 services/identity/.env       # gitignored
-services/chat-api/.env.example
-services/chat-api/.env       # gitignored
+services/chat_api/.env.example
+services/chat_api/.env       # gitignored
 ```
 
 The root `.gitignore` applies at every depth, but it needed one fix: `.env.*` swallows
@@ -376,12 +376,12 @@ and process env supplies everything.
 
 ### Different keys per service, per deployment
 
-This falls out naturally. `chat-api` and `ingestion-worker` each read `OPENAI_API_KEY` from
+This falls out naturally. `chat_api` and `ingestion-worker` each read `OPENAI_API_KEY` from
 their **own** `.env`, so they can use different keys, different quotas, different models:
 
 ```ini
-# services/chat-api/.env
-SERVICE_NAME=chat-api
+# services/chat_api/.env
+SERVICE_NAME=chat_api
 OPENAI_API_KEY=sk-chat-...
 DEFAULT_MODEL=gpt-4o
 DB_NAME=chat_db
@@ -401,11 +401,11 @@ configuration, so the same separation holds with no extra mechanism.
 ### Compose: keep the files, don't flatten them
 
 ```yaml
-chat-api:
-  build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: chat-api } }
+chat_api:
+  build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: chat_api } }
   env_file:
     - ./.env.shared
-    - ./services/chat-api/.env
+    - ./services/chat_api/.env
   environment:
     ENVIRONMENT: local
 ```
@@ -448,5 +448,5 @@ user request is worse than one that refuses to start.
   `openai_api_key` above).
 - Instantiate settings in the composition root **before** `create_app()` returns.
 - Surface Pydantic's validation error directly — it already names the offending field.
-- Add a `uv run --package chat-api python -m chat_api.settings --check` entrypoint for CI
+- Add a `uv run --package chat_api python -m chat_api.settings --check` entrypoint for CI
   and for a container `preStart` probe.

@@ -547,7 +547,7 @@ wheels = [
 [[package]]
 name = "chat-api"
 version = "0.1.0"
-source = { editable = "services/chat-api" }
+source = { editable = "services/chat_api" }
 dependencies = [
     { name = "base", extra = ["auth", "llm", "postgres", "redis", "server", "sql", "sqlite", "sse"] },
 ]

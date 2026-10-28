@@ -59,7 +59,7 @@ A production-ready FastAPI starter with a layered architecture, metaclass-based 
 ### Installation
 
 This repository is a **uv workspace**. The shared library lives in `packages/base/`, and
-each deployable service lives under `services/` — today just `services/chat-api/`.
+each deployable service lives under `services/` — today just `services/chat_api/`.
 
 ```bash
 # Every workspace member
@@ -67,7 +67,7 @@ uv sync --all-packages
 
 # Or one service into its own isolated environment. A workspace shares a single
 # `.venv`, so `uv sync --package <svc>` alone would uninstall the others.
-UV_PROJECT_ENVIRONMENT=.venvs/chat-api uv sync --package chat-api
+UV_PROJECT_ENVIRONMENT=.venvs/chat_api uv sync --package chat_api
 ```
 
 ### Generate RSA Keys (JWT Auth)
@@ -80,10 +80,10 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 ### Configure
 
-1. Copy `services/chat-api/.env.example` → `services/chat-api/.env` and fill in what you need. Each service composes its own typed settings from `CoreSettings` plus the mixins it uses (`packages/base/base/services/configuration/`) — you only set the integrations that service uses.
+1. Copy `services/chat_api/.env.example` → `services/chat_api/.env` and fill in what you need. Each service composes its own typed settings from `CoreSettings` plus the mixins it uses (`packages/base/base/services/configuration/`) — you only set the integrations that service uses.
 2. Optionally copy `.env.shared.example` → `.env.shared` at the repository root for infrastructure endpoints every service shares. Precedence is `.env.shared` < the service's `.env` < `.env.local` < real process environment.
 3. **SQLite (default):**
-   - `mkdir -p services/chat-api/database`
+   - `mkdir -p services/chat_api/database`
    - keep `SQL_BACKEND=sqlite` and `SQLITE_DB_PATH=database/app.db` (already in the service's `.env.example`; the path is relative to the service directory)
    - Alembic creates the `.db` file on first `alembic upgrade head`
 4. In Docker/deploy, set the same variables as real environment vars instead of a `.env` file.
@@ -93,13 +93,13 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 Each service owns its own schema and its own migration history, so migrations run from the service directory.
 
 ```bash
-cd services/chat-api && uv run alembic upgrade head
+cd services/chat_api && uv run alembic upgrade head
 ```
 
 ### Run
 
 ```bash
-# From services/chat-api, so the service's own .env resolves
+# From services/chat_api, so the service's own .env resolves
 uv run serve
 
 # Or directly with uvicorn
@@ -369,12 +369,12 @@ Same `Settings` model everywhere — change `ENVIRONMENT=local|dev|prod|…` (an
 
 ### Common variables
 
-Full list + comments: [`services/chat-api/.env.example`](services/chat-api/.env.example) and [`.env.shared.example`](.env.shared.example). Highlights:
+Full list + comments: [`services/chat_api/.env.example`](services/chat_api/.env.example) and [`.env.shared.example`](.env.shared.example). Highlights:
 
 | Variable | Default | Used by |
 |----------|---------|---------|
 | `ENVIRONMENT` | `local` | Webserver (uvicorn vs gunicorn), error debug detail |
-| `SERVICE_NAME` | *(required; `chat-api` for this service)* | Namespaces Redis channels, cache keys, log fields and traces |
+| `SERVICE_NAME` | *(required; `chat_api` for this service)* | Namespaces Redis channels, cache keys, log fields and traces |
 | `AUTH_PRIVATE_KEY_PATH` / `AUTH_PUBLIC_KEY_PATH` | `keys/*.pem` | `AuthService` JWT |
 | `OAUTH_PROVIDERS` + `OAUTH_*_CLIENT_*` | off | Login-with-X (Google/Facebook/Microsoft/GitHub/Apple) |
 | `IDP_RESOURCE_SERVER_ENABLED` + `IDP_*` | off | Accept enterprise IdP Bearer JWTs |
@@ -1308,7 +1308,7 @@ design lives in [`docs/architecture/`](docs/architecture/README.md).
 
 > **Status: phases 0–3 implemented.** `base` is now a domain-free library in
 > `packages/base/` with optional dependency extras and composable settings, and the former
-> monolith is `services/chat-api/`, which owns its own tables, migrations and `.env`.
+> monolith is `services/chat_api/`, which owns its own tables, migrations and `.env`.
 > Phases 4–6 (build/deploy tooling, the identity split, and the async backbone) are still
 > design only — see [08 — Migration Plan](docs/architecture/08-migration-plan.md).
 >

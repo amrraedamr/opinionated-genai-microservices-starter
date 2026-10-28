@@ -92,8 +92,8 @@ Notes on the deltas from today's Dockerfile:
 Each service keeps a three-line `Dockerfile` for tools that expect one in-place:
 
 ```dockerfile
-# services/chat-api/Dockerfile
-# Build from the repo root: docker build -f docker/service.Dockerfile --build-arg SERVICE=chat-api .
+# services/chat_api/Dockerfile
+# Build from the repo root: docker build -f docker/service.Dockerfile --build-arg SERVICE=chat_api .
 ```
 
 ### Entrypoint
@@ -166,12 +166,12 @@ services:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
 
-  chat-api:
+  chat_api:
     build:
       context: ..
       dockerfile: docker/service.Dockerfile
-      args: { SERVICE: chat-api }
-    env_file: [../.env.shared, ../services/chat-api/.env]
+      args: { SERVICE: chat_api }
+    env_file: [../.env.shared, ../services/chat_api/.env]
     environment:
       RUN_MIGRATIONS: "1"
       IDENTITY_BASE_URL: http://identity:8000
@@ -186,7 +186,7 @@ services:
 `depends_on: service_healthy` works.
 
 A developer working on one service runs infra in Docker and that single service on the
-host via `uv run --package chat-api serve` — fast reload, real dependencies.
+host via `uv run --package chat_api serve` — fast reload, real dependencies.
 
 ---
 

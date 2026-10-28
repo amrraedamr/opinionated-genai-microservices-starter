@@ -31,7 +31,7 @@ Order the work so that each phase is independently valuable and independently re
 - Leave the single app's operational files (`alembic/`, `alembic.ini`, `.env.example`,
   `Dockerfile`, `run.sh`) at the repository root. They are still coherent there — the root
   is the only app — and phase 2 moves them once, directly to their final home in
-  `services/chat-api/`, rather than relocating them twice.
+  `services/chat_api/`, rather than relocating them twice.
 
 **Risk:** low. **Verify:** app boots, `/health-check` responds, `alembic upgrade head`
 works, existing endpoints behave.
@@ -63,8 +63,8 @@ phase.
 **Goal:** the monolith becomes *service number one*. This is the phase that proves the
 design.
 
-- Create `services/chat-api/` with `pyproject.toml` depending on `base[...]`.
-- Move `base/routers/{auth,conversation,user}.py` → `services/chat-api/chat_api/routers/`.
+- Create `services/chat_api/` with `pyproject.toml` depending on `base[...]`.
+- Move `base/routers/{auth,conversation,user}.py` → `services/chat_api/chat_api/routers/`.
 - Move `base/models/orm/*` and the concrete stores (`store/user.py`, `store/conversation.py`,
   `store/user_identity.py`, `store/chat_history/sql.py`) into the service.
 - Move `base/services/auth/` **wholesale** into the service. It imports `UserDTO` and
@@ -97,7 +97,7 @@ no pending autogenerate diff against the existing one.
   import site. `base/tools/serializers.py` degrades rather than raising — it is core.
   `SQLClient` probes its backend's drivers, which SQLAlchemy loads by URL rather than by
   import.
-- Split `Settings` into `CoreSettings` + mixins; `chat-api` composes its own. Field names
+- Split `Settings` into `CoreSettings` + mixins; `chat_api` composes its own. Field names
   are lifted unchanged; only `app_name` → `service_name` is renamed.
 - Add `configure()` / `get_settings()`; migrate every `settings` import site in `base` and
   delete the old singleton outright. The composition root and `alembic/env.py` both call
@@ -108,7 +108,7 @@ no pending autogenerate diff against the existing one.
 - `run.sh` runs from the service directory so its `.env` and `../../.env.shared` resolve.
 
 **Risk:** medium — many call sites, but mechanical and type-checkable. **Verify:**
-`uv sync --package chat-api` installs no Qdrant/Cosmos/Mongo/Azure Search; a second service
+`uv sync --package chat_api` installs no Qdrant/Cosmos/Mongo/Azure Search; a second service
 installed with different extras gets the inverse closure from the same lockfile; the
 service boots with only its own `.env`, with precedence shared < `.env` < `.env.local` <
 process env proven by test; a deliberately missing extra produces the friendly error.
@@ -126,7 +126,7 @@ process env proven by test; a deliberately missing extra produces the friendly e
 - `tools/affected.py` + CI matrix; boundary lint; `uv lock --check`.
 - `tools/new_service.py` (copier template).
 - Minimal test infrastructure: `pytest`, the `AbstractStore` conformance suite, one API
-  test for `chat-api`.
+  test for `chat_api`.
 
 **Risk:** low — additive. **Verify:** `docker compose up` brings up the stack healthy;
 scaffolder output builds and boots unmodified.
@@ -140,7 +140,7 @@ scaffolder output builds and boots unmodified.
 - `base/services/auth` splits: stateless `TokenVerifier` + `Principal` stay in `base`;
   login, OAuth, refresh and user storage move to `services/identity/`.
 - `user` / `user_identity` tables and stores move to `identity`, with its own database.
-- `chat-api` drops those tables and depends on verified claims only; `conversation.user_id`
+- `chat_api` drops those tables and depends on verified claims only; `conversation.user_id`
   becomes an unconstrained `UUID`.
 - Replace `validate_user_dependency` with `principal_dependency` at every call site.
 - Add `IdentityClient` for the cases needing profile data beyond claims.
@@ -148,11 +148,11 @@ scaffolder output builds and boots unmodified.
 **Risk:** highest — it is a data migration plus an auth change. Sequence it as:
 
 1. Deploy `identity` reading the existing shared database (same tables, new service).
-2. Switch `chat-api` to claims-based `Principal` while the tables still exist.
-3. Only then move the tables to a separate database and drop them from `chat-api`.
+2. Switch `chat_api` to claims-based `Principal` while the tables still exist.
+3. Only then move the tables to a separate database and drop them from `chat_api`.
 4. Drop the cross-table FK **before** separating databases, not after.
 
-**Verify:** tokens issued by `identity` validate in `chat-api`; no `chat-api` code path
+**Verify:** tokens issued by `identity` validate in `chat_api`; no `chat_api` code path
 queries a user table; both services start with their own databases from empty.
 
 ---

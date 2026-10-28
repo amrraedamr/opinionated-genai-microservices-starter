@@ -1,5 +1,5 @@
 [project]
-name = "chat-api"
+name = "chat_api"
 version = "0.1.0"
 description = "Chat API service — conversations, messages, users and auth"
 requires-python = ">=3.12,<3.15"

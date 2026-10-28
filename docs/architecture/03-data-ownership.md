@@ -70,21 +70,21 @@ Each service must declare **its own `DeclarativeBase`**, reusing `base`'s behavi
 **mixins** rather than inheritance of the declarative root:
 
 ```python
-# services/chat-api/chat_api/models/orm/__init__.py
+# services/chat_api/chat_api/models/orm/__init__.py
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
 from base.models.orm import SerializableMixin, TimestampMixin
 
 
 class ChatBase(MappedAsDataclass, DeclarativeBase, SerializableMixin):
-    """Declarative root for chat-api. Owns its own MetaData."""
+    """Declarative root for chat_api. Owns its own MetaData."""
 
 
 __all__ = ["ChatBase", "SerializableMixin", "TimestampMixin"]
 ```
 
 ```python
-# services/chat-api/chat_api/models/orm/conversation.py
+# services/chat_api/chat_api/models/orm/conversation.py
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import MappedColumn, mapped_column
@@ -136,7 +136,7 @@ graph TD
     A["base: AbstractStore / AbstractSequenceStore<br/>(contract only, zero tables)"]
 
     A --> I["identity<br/>PostgreSQL + Alembic<br/>user, user_identity"]
-    A --> C["chat-api<br/>PostgreSQL + Alembic<br/>conversation, chat_message"]
+    A --> C["chat_api<br/>PostgreSQL + Alembic<br/>conversation, chat_message"]
     A --> W["ingestion-worker<br/>MongoDB + Qdrant<br/>no migrations"]
     A --> G["gateway<br/>no database at all"]
 
@@ -185,7 +185,7 @@ Each SQL service gets its own `alembic.ini` and `alembic/` directory, with `env.
 importing only its own models.
 
 ```python
-# services/chat-api/alembic/env.py  (sketch — structure mirrors today's root env.py)
+# services/chat_api/alembic/env.py  (sketch — structure mirrors today's root env.py)
 from chat_api.models.orm import ChatBase
 from chat_api.settings import settings
 
@@ -246,7 +246,7 @@ Ranked by preference:
 | — | **Shared table** | ~~Never~~ | Defeats the architecture |
 
 For pattern 3, the owning service publishes `UserRegistered` / `UserDeactivated` to the
-broker, and consumers keep a **local, narrow, read-only projection** — e.g. chat-api holds
+broker, and consumers keep a **local, narrow, read-only projection** — e.g. chat_api holds
 `user_id` + `display_name` only, in *its own* database. It is a cache, not a copy: it may
 be rebuilt from events at any time.
 

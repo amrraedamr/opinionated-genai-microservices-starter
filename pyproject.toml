@@ -17,6 +17,6 @@ dev = [
 [tool.ruff]
 # Workspace members live outside the root, so list them as import roots to keep
 # isort's first-party detection working from any file in the repository.
-src = [".", "packages/base", "services/chat-api"]
+src = [".", "packages/base", "services/chat_api"]
 lint.ignore = ["E501"]
 lint.extend-select = ["I"]

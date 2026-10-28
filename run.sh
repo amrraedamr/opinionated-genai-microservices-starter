@@ -4,7 +4,7 @@ set -e
 
 # Which service this image runs. One parameterised entrypoint for every
 # service; `docker/service.Dockerfile` makes this a build arg in phase 4.
-SERVICE="${SERVICE:-chat-api}"
+SERVICE="${SERVICE:-chat_api}"
 VENV_BIN="${VENV_BIN:-/app/.venv/bin}"
 
 cd "services/$SERVICE"
