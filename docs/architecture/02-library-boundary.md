@@ -220,22 +220,19 @@ how to report readiness:
 ```python
 class Capability(Protocol):
     name: str
-    async def startup(self, app: FastAPI) -> None: ...
-    async def shutdown(self, app: FastAPI) -> None: ...
-    async def probe(self) -> ProbeResult: ...
+    async def astartup(self, app: FastAPI) -> None: ...
+    async def ashutdown(self, app: FastAPI) -> None: ...
+    async def aprobe(self) -> ProbeResult: ...
 ```
 
-`BaseCapability` sits alongside it with no-op defaults, so an implementation overrides only
-what it actually needs.
-
 Capabilities start in the order listed and shut down in reverse. A capability that fails to
-start does not strand the ones already running, and a `shutdown()` that raises does not stop
+start does not strand the ones already running, and an `ashutdown()` that raises does not stop
 the rest from running.
 
 > **Instantiate, do not connect.** A capability object is built at module import, and
 > gunicorn runs with `preload: True` — so anything created in `__init__` is created *before*
 > `fork()` and shared by every worker. Connection pools, engines and clients are not
-> fork-safe. Build them in `startup()`, which the ASGI lifespan runs once per worker after
+> fork-safe. Build them in `astartup()`, which the ASGI lifespan runs once per worker after
 > the fork.
 
 This also yields a real `/readyz`: each enabled capability reports whether its backing

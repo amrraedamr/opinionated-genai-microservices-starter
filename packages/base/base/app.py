@@ -43,7 +43,7 @@ def _resolve_cors_origins(
 
 async def _run_probe(capability: Capability) -> ProbeResult:
     try:
-        return await capability.probe()
+        return await capability.aprobe()
     except Exception as exc:  # noqa: BLE001 — a probe must never break /readyz
         return ProbeResult(
             name=capability.name,
@@ -77,7 +77,7 @@ def create_app(
                 for hook in lifespan_hooks:
                     await stack.enter_async_context(hook(app))
                 for capability in capabilities:
-                    await capability.startup(app)
+                    await capability.astartup(app)
                     started.append(capability)
                     logger.info("Capability started: %s", capability.name)
                 yield
@@ -85,7 +85,7 @@ def create_app(
             logger.info("Application shutting down")
             for capability in reversed(started):
                 try:
-                    await capability.shutdown(app)
+                    await capability.ashutdown(app)
                 except Exception:  # noqa: BLE001 — one failure must not strand the rest
                     logger.exception(
                         "Capability failed to shut down: %s", capability.name

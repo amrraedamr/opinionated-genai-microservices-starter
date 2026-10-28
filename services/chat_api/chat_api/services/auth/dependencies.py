@@ -7,8 +7,8 @@ from chat_api.models.orm.user import UserDTO
 from chat_api.services.auth import AuthService
 
 
-async def validate_user(principal: Principal = principal_dependency) -> UserDTO:
+async def avalidate_user(principal: Principal = principal_dependency) -> UserDTO:
     return await AuthService().aresolve_principal(principal)
 
 
-validate_user_dependency = Depends(validate_user)
+validate_user_dependency = Depends(avalidate_user)

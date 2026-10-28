@@ -17,13 +17,13 @@ class TerminalCapture:
     def service(self) -> TerminalCaptureService:
         return TerminalCaptureService(self._app_name)
 
-    async def startup(self, app: FastAPI) -> None:
+    async def astartup(self, app: FastAPI) -> None:
         self.service.start()
 
-    async def shutdown(self, app: FastAPI) -> None:
+    async def ashutdown(self, app: FastAPI) -> None:
         await self.service.stop()
 
-    async def probe(self) -> ProbeResult:
+    async def aprobe(self) -> ProbeResult:
         active = self.service.is_active
         return ProbeResult(
             name=self.name,

@@ -16,13 +16,13 @@ class Prompts:
     def __init__(self, templates: Sequence[ModuleType] = ()) -> None:
         self._templates = tuple(templates)
 
-    async def startup(self, app: FastAPI) -> None:
+    async def astartup(self, app: FastAPI) -> None:
         await PromptLoader().initialize(self._templates)
 
-    async def shutdown(self, app: FastAPI) -> None:
+    async def ashutdown(self, app: FastAPI) -> None:
         await PromptLoader().shutdown()
 
-    async def probe(self) -> ProbeResult:
+    async def aprobe(self) -> ProbeResult:
         keys = PromptLoader().list_keys()
         if not keys:
             return ProbeResult(

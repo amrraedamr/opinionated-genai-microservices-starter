@@ -160,7 +160,7 @@ instances are created on first use — which, for anything touched at import tim
 Connection pools (SQLAlchemy async engines, Redis, Mongo clients) created pre-fork are
 shared across workers and produce intermittent, hard-to-reproduce failures.
 
-Rule: **create no client at import time.** Capabilities create their clients in `startup()`,
+Rule: **create no client at import time.** Capabilities create their clients in `astartup()`,
 which runs post-fork. Worth a dedicated test that asserts no engine exists after importing
 a service module.
 
@@ -248,7 +248,7 @@ cache is unreachable still reports ready.
 
 Add `SQL()`, `Redis()`, `LLM()` and `Vectors()` capabilities whose `probe()` issues a
 cheap round trip (`SELECT 1`, `PING`, a models list) and whose `shutdown()` disposes the
-pool. They must create their clients in `startup()`, never in `__init__` — gunicorn runs
+pool. They must create their clients in `astartup()`, never in `__init__` — gunicorn runs
 with `preload: True`, so an `__init__`-built pool is shared across forked workers.
 
 ---

@@ -28,7 +28,7 @@ class AuthService(metaclass=Singleton):
             {"user_id": str(user.id), "email": user.email},
         )
 
-    async def refresh_access_token(self, refresh_token: RefreshToken) -> TokenPair:
+    async def arefresh_access_token(self, refresh_token: RefreshToken) -> TokenPair:
         payload = self._verifier.decode_local(refresh_token, expected_type="refresh")
         user_id = payload.get("user_id", "")
         user = await self._user_store.aget(uuid.UUID(user_id))
