@@ -44,6 +44,7 @@ A production-ready FastAPI starter with a layered architecture, metaclass-based 
 - [Webserver](#webserver)
 - [API Endpoints](#api-endpoints)
 - [Tech Stack](#tech-stack)
+- [Multi-Service Architecture (design)](#multi-service-architecture-design)
 
 ---
 
@@ -1286,3 +1287,26 @@ Gunicorn is configured with:
 | **Package Manager** | uv |
 | **Linting** | Ruff |
 | **Pre-commit** | pre-commit hooks |
+
+---
+
+## Multi-Service Architecture (design)
+
+This starter currently targets a **single application**. A design for extending it into a
+**multi-app / microservice** starter — several deployables sharing this same foundation,
+each with its own dependencies, its own database, and its own `.env` — lives in
+[`docs/architecture/`](docs/architecture/README.md).
+
+> **Design only — not yet implemented.** Nothing in the repository has changed.
+
+| Doc | Covers |
+|-----|--------|
+| [Overview](docs/architecture/README.md) | Decisions at a glance |
+| [01 — Workspace Layout](docs/architecture/01-workspace-layout.md) | uv workspace, one lockfile, many packages |
+| [02 — Library Boundary](docs/architecture/02-library-boundary.md) | What stays in `base`, dependency extras, app factory |
+| [03 — Data Ownership](docs/architecture/03-data-ownership.md) | Database per service, SQL/NoSQL freedom, per-service migrations |
+| [04 — Configuration](docs/architecture/04-configuration.md) | `CoreSettings` + mixins, per-service `.env`, precedence |
+| [05 — Service Contracts](docs/architecture/05-service-contracts.md) | Auth split, service-to-service calls, correlation IDs |
+| [06 — Build & Deploy](docs/architecture/06-build-and-deploy.md) | One parameterised Dockerfile, compose, CI |
+| [07 — Modularity Backlog](docs/architecture/07-modularity-backlog.md) | Remaining gaps, ranked |
+| [08 — Migration Plan](docs/architecture/08-migration-plan.md) | Phased path; the app stays deployable throughout |
