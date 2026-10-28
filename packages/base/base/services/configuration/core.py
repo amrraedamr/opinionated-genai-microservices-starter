@@ -44,5 +44,3 @@ class CoreSettings(BaseSettings, metaclass=SingletonSettings):
 
     environment: str = "local"
     log_level: str = "INFO"
-    api_prefix: str = "/api"
-    max_gunicorn_workers: int = 2

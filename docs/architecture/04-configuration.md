@@ -61,14 +61,18 @@ class CoreSettings(BaseSettings, metaclass=SingletonSettings):
     service_name: str                       # required — identifies the service everywhere
     environment: str = "local"
     log_level: str = "INFO"
-    api_prefix: str = "/api"
-    max_gunicorn_workers: int = 2
 ```
 
 `service_name` is deliberately **required and unnamed-by-default**. It is the namespace key
 for Redis channels (`CacheChannels.for_app`), cache keys, queue names, log fields and
 trace attributes — a wrong default here causes cross-service collisions, so the service
 must state it.
+
+> **Nothing subsystem-specific belongs here.** Serving knobs (`api_prefix`, `api_host`,
+> `api_port`, `max_gunicorn_workers`) live in `ServerSettingsMixin`, because they pair with
+> the `server` extra — a broker-consuming worker installs neither uvicorn nor gunicorn and
+> must not carry a worker count it can never act on. The test for `CoreSettings` membership
+> is: *would a worker with no HTTP surface and no database still need this?*
 
 ### Layer 2 — mixins per subsystem
 
@@ -80,6 +84,15 @@ One mixin per optional subsystem, mirroring the dependency extras in
 from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, Field
+
+
+class ServerSettingsMixin(BaseModel):
+    """HTTP serving. Pairs with the `server` extra (uvicorn + gunicorn)."""
+
+    api_prefix: str = "/api"
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    max_gunicorn_workers: int = 2
 
 
 class SQLSettingsMixin(BaseModel):
@@ -150,12 +163,14 @@ from base.services.configuration.mixins import (
     PromptSettingsMixin,
     RedisSettingsMixin,
     SQLSettingsMixin,
+    ServerSettingsMixin,
     TokenIssuingMixin,
 )
 
 
 class ChatApiSettings(
     CoreSettings,
+    ServerSettingsMixin,
     SQLSettingsMixin,
     PostgresSettingsMixin,
     RedisSettingsMixin,
@@ -294,10 +309,16 @@ class SQLService:
 ```
 
 Shipped: `SupportsSQLConfig` / `SupportsPostgresConfig` / `SupportsMySQLConfig`,
-`SupportsLLMConfig` / `SupportsEmbeddingConfig`, `SupportsCacheConfig`, and
-`SupportsVectorConfig` / `SupportsAzureSearchConfig`. They are `runtime_checkable`, so the
-conformance is also assertable in a test — `ChatApiSettings` satisfies the SQL, Postgres,
-LLM and cache protocols and does **not** satisfy the vector one.
+`SupportsLLMConfig` / `SupportsEmbeddingConfig`, `SupportsCacheConfig`,
+`SupportsVectorConfig` / `SupportsAzureSearchConfig`, and `SupportsServerConfig`. They are
+`runtime_checkable`, so the conformance is also assertable in a test — `ChatApiSettings`
+satisfies the SQL, Postgres, LLM, cache and server protocols and does **not** satisfy the
+vector one.
+
+`SupportsServerConfig` earns its place: the gunicorn worker count is read only on the
+non-`local` branch of `run_webserver`, so a service that forgot `ServerSettingsMixin` would
+pass every local test and then fail on container start. The protocol moves that to
+type-check time.
 
 > **`_key` matters here.** `SQLClient` is a `KeyedSingleton` whose default identity key is
 > `hash_args` over its constructor arguments. Passing a whole settings object would

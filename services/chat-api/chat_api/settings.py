@@ -15,6 +15,7 @@ from base.services.configuration.mixins import (
     PostgresSettingsMixin,
     PromptSettingsMixin,
     RedisSettingsMixin,
+    ServerSettingsMixin,
     SQLSettingsMixin,
     TokenIssuingMixin,
 )
@@ -22,6 +23,7 @@ from base.services.configuration.mixins import (
 
 class ChatApiSettings(
     CoreSettings,
+    ServerSettingsMixin,
     SQLSettingsMixin,
     PostgresSettingsMixin,
     RedisSettingsMixin,

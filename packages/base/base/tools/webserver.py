@@ -1,8 +1,7 @@
 import importlib
 import logging
 import multiprocessing
-import os
-from typing import Any
+from typing import Any, cast
 
 from base.tools.errors import MissingExtraError
 
@@ -14,7 +13,8 @@ except ModuleNotFoundError as exc:  # pragma: no cover
         "server", "uvicorn / gunicorn", feature="run_webserver"
     ) from exc
 
-from base.services.configuration import CoreSettings, get_settings
+from base.services.configuration import get_settings
+from base.tools.server_protocol import SupportsServerConfig
 
 
 def _import_app(app_path: str) -> Any:
@@ -32,16 +32,21 @@ def run_webserver(
     host: str | None = None,
     port: int | None = None,
     environment: str | None = None,
-    settings: CoreSettings | None = None,
+    settings: SupportsServerConfig | None = None,
 ) -> None:
     """Serve `app_path` with uvicorn locally and gunicorn everywhere else.
 
     `app_path` is the service's own import path — `base` no longer knows which
     application it is serving.
+
+    `settings` must satisfy `SupportsServerConfig`, i.e. the service composed
+    `ServerSettingsMixin`. Host and port come from there (populated from
+    `API_HOST` / `API_PORT` like any other setting); the explicit arguments
+    stay as an override for tests and embedding.
     """
-    settings = settings or get_settings()
-    host = host or os.environ.get("API_HOST", "0.0.0.0")
-    port = int(port or os.environ.get("API_PORT", 8000))
+    settings = settings or cast(SupportsServerConfig, get_settings())
+    host = host or settings.api_host
+    port = int(port if port is not None else settings.api_port)
     environment = environment if environment is not None else settings.environment
 
     logging.info(f"Starting webserver (environment={environment})")
@@ -64,9 +69,9 @@ def run_gunicorn(
     app_path: str,
     host: str = "0.0.0.0",
     port: int = 8000,
-    settings: CoreSettings | None = None,
+    settings: SupportsServerConfig | None = None,
 ) -> None:
-    settings = settings or get_settings()
+    settings = settings or cast(SupportsServerConfig, get_settings())
 
     # `preload: True` below imports the application in the master process, so
     # this runs pre-fork. Anything that must not be shared between workers —

@@ -9,6 +9,23 @@ from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, Field
 
+# Server
+
+
+class ServerSettingsMixin(BaseModel):
+    """HTTP serving. Pairs with the `server` extra (uvicorn + gunicorn).
+
+    These are deliberately *not* on `CoreSettings`: a broker-consuming worker
+    installs no `server` extra and has no HTTP surface, so it should not carry
+    an API prefix or a gunicorn worker count it can never act on.
+    """
+
+    api_prefix: str = "/api"
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    max_gunicorn_workers: int = 2
+
+
 # Auth
 
 
