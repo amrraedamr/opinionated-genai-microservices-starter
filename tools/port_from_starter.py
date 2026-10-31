@@ -61,12 +61,27 @@ MANUAL = {
     "services/auth/auths.py": "removed; the bearer scheme lives in base/services/auth/bearer.py",
 }
 
+# Paths outside `base/` that have no single destination here. A patch touching
+# one needs a human, same as MANUAL, but the reason is about layout rather
+# than a restructured module.
+OUTSIDE = {
+    "tests/": "the starter has one suite; here each service tests itself under services/<name>/tests/",
+    "alembic/": "migrations are per service, under services/<name>/alembic/",
+    "alembic.ini": "each SQL service has its own alembic.ini",
+    "Dockerfile": "replaced by the parameterised docker/service.Dockerfile",
+    "run.sh": "replaced by docker/run.sh",
+    "pyproject.toml": "split into the workspace root plus a manifest per package and service",
+}
+
 DIFF_PATH = re.compile(r"^(diff --git |--- |\+\+\+ |rename from |rename to )(a/|b/)?(.+)$")
 
 
 def map_path(path: str) -> tuple[str | None, str | None]:
     """Return (new_path, reason) where reason is set only when unmappable."""
     if not path.startswith("base/"):
+        for prefix, reason in OUTSIDE.items():
+            if path == prefix or path.startswith(prefix):
+                return None, reason
         return path, None
     rel = path[len("base/") :]
     if rel in MANUAL:
@@ -83,39 +98,60 @@ def map_path(path: str) -> tuple[str | None, str | None]:
 
 
 def rewrite(patch: str) -> tuple[str, list[str]]:
-    """Rewrite every path in a starter patch. Returns (patch, manual_notes)."""
-    out: list[str] = []
-    problems: list[str] = []
+    """Rewrite every path in a starter patch.
+
+    Returns the rewritten patch and a note per file that has no destination
+    here. Those files are dropped rather than left to fail the whole apply —
+    the rest of the commit still lands, and the note says what to do by hand.
+    """
+    header: list[str] = []
+    sections: list[tuple[str, list[str]]] = []
     for line in patch.splitlines(keepends=True):
+        if line.startswith("diff --git "):
+            sections.append((line, []))
+        elif sections:
+            sections[-1][1].append(line)
+        else:
+            header.append(line)
+
+    out: list[str] = header
+    problems: list[str] = []
+    for first, body in sections:
+        rewritten, why = _rewrite_section(first, body)
+        if why:
+            problems.append(why)
+            continue
+        out.extend(rewritten)
+    return "".join(out), problems
+
+
+def _rewrite_section(first: str, body: list[str]) -> tuple[list[str], str | None]:
+    """Rewrite one file's diff, or explain why it has no destination here."""
+    parts = first.rstrip("\n")[len("diff --git ") :].split(" b/")
+    if len(parts) != 2:
+        return [first, *body], None
+
+    left = parts[0][2:] if parts[0].startswith("a/") else parts[0]
+    new_left, why = map_path(left)
+    if why:
+        return [], f"{left}: {why}"
+    new_right, why = map_path(parts[1])
+    if why:
+        return [], f"{parts[1]}: {why}"
+
+    out = [f"diff --git a/{new_left} b/{new_right}\n"]
+    for line in body:
         match = DIFF_PATH.match(line.rstrip("\n"))
         if not match:
             out.append(line)
             continue
         head, ab, rest = match.groups()
-        if head == "diff --git ":
-            parts = rest.split(" b/")
-            if len(parts) != 2:
-                out.append(line)
-                continue
-            left = parts[0][2:] if parts[0].startswith("a/") else parts[0]
-            new_left, why = map_path(left)
-            new_right, _ = map_path(parts[1])
-            if why:
-                problems.append(f"{left}: {why}")
-                out.append(line)
-                continue
-            out.append(f"diff --git a/{new_left} b/{new_right}\n")
-            continue
         if rest == "/dev/null":
             out.append(line)
             continue
-        new, why = map_path(rest)
-        if why:
-            problems.append(f"{rest}: {why}")
-            out.append(line)
-            continue
-        out.append(f"{head}{ab or ''}{new}\n")
-    return "".join(out), problems
+        new, _ = map_path(rest)
+        out.append(f"{head}{ab or ''}{new or rest}\n")
+    return out, None
 
 
 def git(*args: str, check: bool = True) -> str:
