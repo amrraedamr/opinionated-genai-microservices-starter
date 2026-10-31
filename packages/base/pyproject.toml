@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Opinionated FastAPI GenAI foundation library"
 authors = [{ name = "Amr Amr", email = "amr.amr2391@gmail.com" }]
 requires-python = ">=3.12,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
