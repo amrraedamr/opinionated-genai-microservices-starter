@@ -1,7 +1,7 @@
 """Initial identity schema
 
 Revision ID: 519ec68cf8c3
-Revises: 
+Revises:
 Create Date: 2026-10-28 23:26:05.993471
 
 """
