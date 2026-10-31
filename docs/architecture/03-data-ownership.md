@@ -181,22 +181,21 @@ Depends on neither. A gateway or BFF has no store and no migrations.
 
 ## Per-service migrations
 
-Each SQL service gets its own `alembic.ini` and `alembic/` directory, with `env.py`
-importing only its own models.
+Each SQL service gets its own `alembic.ini` and `alembic/` directory. The shared machinery
+— engine construction, offline/online modes, type comparison — lives in
+`base.tools.migrations`, so a service's `env.py` only declares what is its own: its models
+and its settings.
 
 ```python
-# services/chat_api/alembic/env.py  (sketch — structure mirrors today's root env.py)
+# services/chat_api/alembic/env.py
+import chat_api.models.orm.chat_history_message    # noqa: F401
+import chat_api.models.orm.conversation            # noqa: F401
+import chat_api.models.orm.prompt                  # noqa: F401
+from base.tools.migrations import run_migrations
 from chat_api.models.orm import ChatBase
 from chat_api.settings import settings
 
-import chat_api.models.orm.conversation            # noqa: F401
-import chat_api.models.orm.chat_history_message    # noqa: F401
-
-target_metadata = ChatBase.metadata
-
-
-def _get_async_url() -> str:
-    return settings.sql_async_url
+run_migrations(ChatBase.metadata, settings)
 ```
 
 Keep today's `_compare_type` hook that suppresses false-positive `UUIDType` diffs on

@@ -91,15 +91,14 @@ beats magic exactly when isolation matters.
 
 ```python
 # services/chat_api/alembic/env.py
-from chat_api.models.orm import ChatBase
-
 import chat_api.models.orm.chat_history_message    # noqa: F401
 import chat_api.models.orm.conversation            # noqa: F401
 import chat_api.models.orm.prompt                  # noqa: F401
-import chat_api.models.orm.user                    # noqa: F401
-import chat_api.models.orm.user_identity           # noqa: F401
+from base.tools.migrations import run_migrations
+from chat_api.models.orm import ChatBase
+from chat_api.settings import settings
 
-target_metadata = ChatBase.metadata
+run_migrations(ChatBase.metadata, settings)
 ```
 
 ### 2. Import-time application construction

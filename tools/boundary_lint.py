@@ -16,25 +16,8 @@ Rules, each from docs/architecture:
 from __future__ import annotations
 
 import ast
-import pathlib
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-BASE = ROOT / "packages" / "base"
-SERVICES = ROOT / "services"
-
-
-def service_names() -> list[str]:
-    return sorted(p.name for p in SERVICES.iterdir() if p.is_dir()) if SERVICES.exists() else []
-
-
-def python_files(root: pathlib.Path) -> list[pathlib.Path]:
-    return [
-        p
-        for p in root.rglob("*.py")
-        if "__pycache__" not in p.parts
-        and ".venv" not in p.parts
-        and "alembic" not in p.parts
-    ]
+from workspace import BASE, ROOT, SERVICES, python_files, service_names
 
 
 def imported_modules(tree: ast.AST) -> set[str]:

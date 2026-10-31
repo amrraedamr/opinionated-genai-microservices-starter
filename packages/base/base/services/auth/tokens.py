@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
-from uuid import UUID
 
 from base.models.definitions.errors import AuthErrors
 from base.services.auth.models import AccessToken, Principal, RefreshToken, TokenPair
@@ -15,6 +14,7 @@ from base.services.auth.protocol import (
 from base.services.common.meta import Singleton
 from base.services.configuration import get_settings
 from base.tools.errors import MissingExtraError, raise_error
+from base.tools.misc import parse_uuid
 
 try:
     from jwt import (
@@ -28,13 +28,6 @@ try:
     from jwt.exceptions import PyJWKClientError, PyJWKError
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise MissingExtraError("auth", "pyjwt", feature="token issuing/verification") from exc
-
-
-def _as_uuid(value: str) -> UUID | None:
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        return None
 
 
 class InvalidSignedPayload(Exception):
@@ -189,7 +182,7 @@ class TokenVerifier(metaclass=Singleton):
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         return Principal(
             subject=subject,
-            user_id=_as_uuid(subject),
+            user_id=parse_uuid(subject),
             email=payload.get("email"),
             roles=frozenset(payload.get("roles", []) or []),
             scopes=frozenset((payload.get("scope") or "").split()),
@@ -247,7 +240,7 @@ class TokenVerifier(metaclass=Singleton):
             raise_error(AuthErrors.USER_TOKEN_INCOMPLETE)
         return Principal(
             subject=subject,
-            user_id=_as_uuid(subject),
+            user_id=parse_uuid(subject),
             email=email,
             roles=frozenset(payload.get("roles", []) or []),
             scopes=frozenset((payload.get("scope") or "").split()),

@@ -284,17 +284,23 @@ uv run alembic current
 │   │
 │   └── tools/                            # Utility modules
 │       ├── __init__.py
+│       ├── correlation.py                # Correlation id parsing/adoption per request
 │       ├── database.py                   # SQLResultFormats (query result processors)
 │       ├── deserializers.py              # JSON deserialization helpers
 │       ├── errors.py                     # ErrorsException, raise_error
 │       ├── exception_handlers.py         # AppExceptionHandler (FastAPI error mapping)
 │       ├── hashing.py                    # hash_args (deterministic SHA-256 over arbitrary args)
 │       ├── locale.py                     # get_text_locale (EN/AR detection)
-│       ├── misc.py                       # JSON serialization, general helpers
+│       ├── migrations.py                 # Shared Alembic environment for every service
+│       ├── misc.py                       # JSON serialization, parse_uuid, general helpers
+│       ├── openai_clients.py             # OpenAI/Azure client construction
+│       ├── pagination.py                 # paginate/apaginate page arithmetic
 │       ├── prompt.py                     # extract_template_variables, safe_format
+│       ├── resources.py                  # close_all/aclose_all for optional clients
 │       ├── routers.py                    # Auto-discovery router registration
 │       ├── security.py                   # PasswordHashingService (Argon2)
 │       ├── serializers.py                # ExpansiveEncoder, serialize()
+│       ├── server_protocol.py            # SupportsServerConfig
 │       ├── stream.py                     # StreamIterator (SSE support)
 │       ├── tokenizer.py                  # TokenCounter (tiktoken-backed, KeyedSingleton)
 │       ├── validators.py                 # Password validation

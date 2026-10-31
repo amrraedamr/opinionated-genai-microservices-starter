@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import shutil
 import textwrap
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-SERVICES = ROOT / "services"
+from workspace import ROOT, SERVICES
 
 SQL_STORAGE = {"postgres", "mysql", "sqlite"}
 
@@ -255,10 +255,22 @@ def build(name: str, storage: str, http: bool, capabilities: list[str]) -> None:
             """,
         )
         write(directory / "alembic" / "versions" / ".gitkeep", "")
-        print(
-            f"  NOTE: copy services/chat_api/alembic/env.py and script.py.mako into "
-            f"services/{name}/alembic/, then point target_metadata at {root}.metadata"
+        write(
+            directory / "alembic" / "env.py",
+            f'''
+            # Import each table so it registers on {root}.metadata. Add a line per table.
+            from base.tools.migrations import run_migrations
+            from {pkg}.models.orm import {root}
+            from {pkg}.settings import settings
+
+            run_migrations({root}.metadata, settings)
+            ''',
         )
+        shutil.copyfile(
+            SERVICES / "chat_api" / "alembic" / "script.py.mako",
+            directory / "alembic" / "script.py.mako",
+        )
+        print(f"  services/{name}/alembic/script.py.mako")
 
     write(
         directory / ".env.example",

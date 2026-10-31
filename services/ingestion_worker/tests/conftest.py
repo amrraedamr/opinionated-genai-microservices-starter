@@ -4,7 +4,9 @@ import os
 
 import pytest
 
+from base.testing import broker  # noqa: F401
+
 
 @pytest.fixture(scope="session", autouse=True)
-def service_environment() -> None:
+def worker_environment() -> None:
     os.environ.update({"SERVICE_NAME": "ingestion_worker", "ENVIRONMENT": "local"})

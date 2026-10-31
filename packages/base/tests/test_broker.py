@@ -3,18 +3,8 @@
 import asyncio
 from uuid import uuid4
 
-import pytest
-
-from base.services.broker.memory import InMemoryBroker
-from base.services.common.meta import Singleton
 from contracts.events import Event
 from contracts.v1 import identity
-
-
-@pytest.fixture
-def broker():
-    Singleton.purge()
-    return InMemoryBroker()
 
 
 def make_event(correlation_id=None) -> Event:

@@ -276,7 +276,8 @@ from base.app import create_app  # noqa: E402 — must follow configure()
 ...
 ```
 
-`alembic/env.py` does the same, so migrations and the running service resolve configuration
+`alembic/env.py` hands its settings to `base.tools.migrations.run_migrations`, which calls
+`configure()` the same way, so migrations and the running service resolve configuration
 identically.
 
 ### Mechanism 2 — Protocols (static)

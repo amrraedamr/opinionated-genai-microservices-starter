@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from types import ModuleType
 from uuid import uuid4
@@ -70,7 +70,7 @@ def create_app(
     lifespan_hooks = tuple(lifespan_hooks)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Application starting")
         started: list[Capability] = []
         try:

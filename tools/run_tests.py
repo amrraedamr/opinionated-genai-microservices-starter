@@ -13,7 +13,7 @@ import pathlib
 import subprocess
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+from workspace import ROOT
 
 
 def run(label: str, cwd: pathlib.Path) -> int:

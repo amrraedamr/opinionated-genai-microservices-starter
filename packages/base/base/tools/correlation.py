@@ -4,6 +4,8 @@ import contextvars
 import re
 from uuid import UUID, uuid4
 
+from base.tools.misc import parse_uuid
+
 HEADER = "X-Correlation-ID"
 TRACEPARENT = "traceparent"
 
@@ -16,10 +18,9 @@ def parse(value: str | None) -> UUID | None:
     """Read a correlation id from a header value, or return None."""
     if not value:
         return None
-    try:
-        return UUID(value)
-    except ValueError:
-        pass
+    resolved = parse_uuid(value)
+    if resolved is not None:
+        return resolved
     match = _TRACEPARENT.match(value.strip())
     return UUID(match.group(1)) if match else None
 

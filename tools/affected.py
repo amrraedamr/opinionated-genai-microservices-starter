@@ -11,25 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import pathlib
 import subprocess
 import sys
 
 import tomllib
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-SERVICES = ROOT / "services"
-PACKAGES = ROOT / "packages"
+from workspace import SERVICES, service_names
 
 # A change to any of these rebuilds every service.
 GLOBAL_PATHS = ("uv.lock", "pyproject.toml", "docker/", "deploy/", ".github/")
 
 # A change to these affects nothing buildable.
 IGNORED_PATHS = ("docs/", "README.md", "GETTING_STARTED.md", ".gitignore")
-
-
-def services() -> list[str]:
-    return sorted(p.name for p in SERVICES.iterdir() if p.is_dir()) if SERVICES.exists() else []
 
 
 def workspace_deps(service: str) -> set[str]:
@@ -63,7 +55,7 @@ def changed_files(base: str) -> list[str]:
 
 
 def affected(paths: list[str]) -> list[str]:
-    all_services = services()
+    all_services = service_names()
     if not paths:
         return []
 
