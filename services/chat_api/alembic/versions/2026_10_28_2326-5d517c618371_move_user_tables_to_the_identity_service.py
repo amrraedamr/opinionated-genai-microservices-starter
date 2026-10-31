@@ -20,14 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Drop the cross-service foreign key first: a backend that enforces it
-    # refuses to drop a table another table still references.
-    bind = op.get_bind()
-    keys = sa.inspect(bind).get_foreign_keys("conversation")
-    with op.batch_alter_table("conversation", schema=None) as batch_op:
-        for key in keys:
-            if key["referred_table"] == "user" and key.get("name"):
-                batch_op.drop_constraint(key["name"], type_="foreignkey")
+    _drop_user_foreign_keys("conversation")
 
     with op.batch_alter_table("user_identity", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("idx_user_identity_provider"))
@@ -40,6 +33,41 @@ def upgrade() -> None:
         batch_op.drop_index(batch_op.f("idx_user_first_name_last_name"))
         batch_op.drop_index(batch_op.f("idx_user_updated_at"))
     op.drop_table("user")
+
+
+def _drop_user_foreign_keys(table: str) -> None:
+    """Drop `table`'s foreign keys to `user`, named or not.
+
+    The cross-service key has to go first: a backend that enforces it refuses
+    to drop a table another table still references. PostgreSQL names the key
+    for us, so it can be dropped directly. SQLite reflects it without a name,
+    and batch mode can only drop a constraint it can address — so it is given
+    one through a naming convention before the table is rebuilt without it.
+    """
+    keys = [
+        key
+        for key in sa.inspect(op.get_bind()).get_foreign_keys(table)
+        if key["referred_table"] == "user"
+    ]
+    if not keys:
+        return
+
+    named = [key["name"] for key in keys if key.get("name")]
+    if named:
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            for name in named:
+                batch_op.drop_constraint(name, type_="foreignkey")
+        return
+
+    convention = {"fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s"}
+    with op.batch_alter_table(
+        table, schema=None, naming_convention=convention
+    ) as batch_op:
+        for key in keys:
+            batch_op.drop_constraint(
+                f"fk_{table}_{key['constrained_columns'][0]}_user",
+                type_="foreignkey",
+            )
 
 
 def downgrade() -> None:
