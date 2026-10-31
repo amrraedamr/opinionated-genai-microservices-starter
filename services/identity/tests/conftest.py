@@ -33,3 +33,12 @@ def api_prefix() -> str:
     from identity.settings import settings
 
     return settings.api_prefix
+
+
+@pytest.fixture(scope="session")
+def configured_settings(app_environment: pathlib.Path) -> None:
+    """Register identity settings so stores can be built outside the app."""
+    from base.services.configuration import configure
+    from identity.settings import settings
+
+    configure(settings)
