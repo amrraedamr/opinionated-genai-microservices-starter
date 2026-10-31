@@ -8,7 +8,7 @@ from base.tools.errors import MissingExtraError
 
 try:
     from sqlalchemy import DateTime
-    from sqlalchemy.orm import MappedColumn, mapped_column
+    from sqlalchemy.orm import MappedAsDataclass, MappedColumn, mapped_column
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise MissingExtraError("sql", "sqlalchemy", feature="ORM mixins") from exc
 
@@ -34,15 +34,15 @@ class SerializableMixin:
         return self.__class__(**data)
 
 
-class TimestampMixin:
+class TimestampMixin(MappedAsDataclass):
     created_at: MappedColumn[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
+        insert_default=lambda: datetime.now(UTC),
         init=False,
     )
     updated_at: MappedColumn[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
+        insert_default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
         init=False,
     )

@@ -21,14 +21,14 @@ class ConversationDTO(TimestampMixin, ChatBase):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUIDType(binary=True), primary_key=True, default=uuid.uuid4, init=False
+        UUIDType(binary=True), primary_key=True, insert_default=uuid.uuid4, init=False
     )
 
     # Owned by the identity service. Opaque reference, no ForeignKey.
     user_id: Mapped[uuid.UUID] = mapped_column(UUIDType(binary=True))
 
     title: Mapped[str | None] = mapped_column(String(255), default=None)
-    meta: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    meta: Mapped[dict[str, Any]] = mapped_column(JSON, default_factory=dict)
 
     messages: Mapped[list["ChatHistoryMessageDTO"]] = relationship(
         "ChatHistoryMessageDTO",
