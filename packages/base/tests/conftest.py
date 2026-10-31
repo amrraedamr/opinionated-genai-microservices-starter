@@ -6,11 +6,11 @@ needs and register them, exactly as a real service's composition root does.
 """
 
 from base.services.configuration import CoreSettings, configure
-from base.services.configuration.mixins import LLMSettingsMixin
+from base.services.configuration.mixins import EmbeddingSettingsMixin, LLMSettingsMixin
 from base.testing import broker  # noqa: F401
 
 
-class _TestSettings(CoreSettings, LLMSettingsMixin):
+class _TestSettings(CoreSettings, LLMSettingsMixin, EmbeddingSettingsMixin):
     pass
 
 
@@ -20,5 +20,8 @@ configure(
         azure_openai_llm_endpoint="https://example.openai.azure.com",
         azure_openai_llm_deployment_name="gpt-test",
         azure_openai_llm_api_key="sk-test",
+        azure_openai_embedding_endpoint="https://example.openai.azure.com",
+        azure_openai_embedding_deployment_name="embed-test",
+        azure_openai_embedding_api_key="sk-test",
     )
 )
